@@ -25,10 +25,14 @@ module alu(
 			`ALU_SLL:  y <= b << sa;
 			`ALU_SRL:  y <= b >> sa;
 			`ALU_SRA:  y <= $signed(b) >>> sa;
-			`ALU_SLLV:  y <= b << a;
-			`ALU_SRLV:  y <= b >> a;
-			`ALU_SRAV:  y <= $signed(b) >>> a;
-
+			`ALU_SLLV: y <= b << a;
+			`ALU_SRLV: y <= b >> a;
+			`ALU_SRAV: y <= $signed(b) >>> a;
+			// 数据移动
+			`ALU_MFHI: y <= a;
+			`ALU_MFLO: y <= a;
+			`ALU_MTHI: y <= a;
+			`ALU_MTLO: y <= a;
 			default:  y <= 32'b0;
 		endcase
 	end

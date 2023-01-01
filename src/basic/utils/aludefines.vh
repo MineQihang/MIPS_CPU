@@ -17,6 +17,12 @@
 `define ALU_SRLV            5'b01100
 `define ALU_SRAV            5'b01101
 
+// HILO指令(数据移动指令)
+`define ALU_MFHI            5'b01110
+`define ALU_MFLO            5'b01111
+`define ALU_MTHI            5'b10000
+`define ALU_MTLO            5'b10001
+
 
 // `define ALU_ADD             5'b0_0010
 // `define ALU_SUB             5'b0_0011

@@ -30,6 +30,7 @@ wire flushE, pcsrcE, pbranchD;
 wire[31:0] rd1D, rd2D, immD, immE, res, rd1E, rd2E, rd1_data, rd2_data, immD_sl2;
 wire[4:0] rsD, rtD, rdD, rsE, rtE, rdE, wregE, wregM, wregW, saD, saE;
 wire forwardaD, forwardbD;
+wire[2:0] flagD_imm, flagD, flagE, flagM, flagW;
 // execute
 wire zeroE, flushM, pcsrcPE, pbranchE;
 wire[31:0] srca, srcbt, srcb, write, aluoutE, aluoutM, writedataM;
@@ -63,7 +64,7 @@ assign rtD = instrD[20:16];
 assign rdD = instrD[15:11];
 assign saD = instrD[10:6];
 signext u_signext(instrD[15:0], immD);
-regfile u_regfile(clk, regwriteW, rsD, rtD, wregW, res, rd1D, rd2D);
+regfile u_regfile(clk, regwriteW, rsD, rtD, wregW, {{32{1'b0}}, res}, flagD_imm, flagW, rd1D, rd2D);
 sl2 u_sl2(immD, immD_sl2);
 adder branch_adder(immD_sl2, pc_plus4D, pc_branchD);
 
@@ -71,6 +72,9 @@ mux2 #(32) u_mux2_rd1t(rd1D, aluoutM, forwardaD, rd1_data);
 mux2 #(32) u_mux2_rd2t(rd2D, aluoutM, forwardbD, rd2_data);
 // assign pcsrcD = branch & (rd1_data == rd2_data ? 1'b1 : 1'b0);  // 提前分支
 assign pcsrcPD = branch & pbranchD;
+
+// hilo
+hiloflag u_hiloflag(alucontrol, flagD_imm, flagD);
 
 // 执行预测结果 TODO[2]
 
@@ -94,6 +98,7 @@ floprc #(1) dc4(clk, rst, flushE, branch, branchE);
 floprc #(5) dc5(clk, rst, flushE, alucontrol, alucontrolE);
 floprc #(1) dc6(clk, rst, flushE, alusrc, alusrcE);
 floprc #(1) dc7(clk, rst, flushE, regdst, regdstE);
+floprc #(3) dc8(clk, rst, flushE, flagD, flagE);
 
 // ========================Execute========================
 mux2 #(5) u_mux2_rd(rtE, rdE, regdstE, wregE);
@@ -119,6 +124,7 @@ floprc #(1) ec1(clk, rst, flushM, regwriteE, regwriteM);
 floprc #(1) ec2(clk, rst, flushM, memtoregE, memtoregM);
 floprc #(1) ec3(clk, rst, flushM, memwriteE, memwriteM);
 floprc #(1) ec4(clk, rst, flushM, branchE, branchM);
+floprc #(3) ec5(clk, rst, flushM, flagE, flagM);
 
 // ========================Memory========================
 assign aluout = aluoutM;
@@ -135,6 +141,7 @@ floprc #(32) m4(clk, rst, flushM, pcM, pcW);
 
 floprc #(1) mc1(clk, rst, 1'b0, regwriteM, regwriteW);
 floprc #(1) mc2(clk, rst, 1'b0, memtoregM, memtoregW);
+floprc #(3) mc3(clk, rst, 1'b0, flagM, flagW);
 
 // ========================Writeback========================
 mux2 #(32) u_mux2_readdata(aluoutW, readdataW, memtoregW, res);
@@ -162,7 +169,9 @@ hazard u_hazard(
     // flushM, // [1]新增flushM, 因为是在Memory阶段才处理错误，这时错误可能已经传到Execution到Memory阶段的寄存器中，所以需要清空
     //writeback
     wregW,
-    regwriteW
+    regwriteW,
+    // hilo
+    flagE, flagM, flagW
 );
 
 // 分支预测 TODO[1]
