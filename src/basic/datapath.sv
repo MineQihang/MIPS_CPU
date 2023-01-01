@@ -28,7 +28,7 @@ wire[31:0] nxt_pc, tmp_pc1, tmp_pc2, tmp_pc3, pc_plus4F, pc_plus4D, pc_plus4E, p
 // decode
 wire flushE, pcsrcE, pbranchD;
 wire[31:0] rd1D, rd2D, immD, immE, res, rd1E, rd2E, rd1_data, rd2_data, immD_sl2;
-wire[4:0] rsD, rtD, rdD, rsE, rtE, rdE, wregE, wregM, wregW;
+wire[4:0] rsD, rtD, rdD, rsE, rtE, rdE, wregE, wregM, wregW, saD, saE;
 wire forwardaD, forwardbD;
 // execute
 wire zeroE, flushM, pcsrcPE, pbranchE;
@@ -61,6 +61,7 @@ flopenrc #(32) f5(clk, rst, ~stallD, flushD, pc, pcD);  // 分支指令的pc
 assign rsD = instrD[25:21];
 assign rtD = instrD[20:16];
 assign rdD = instrD[15:11];
+assign saD = instrD[10:6];
 signext u_signext(instrD[15:0], immD);
 regfile u_regfile(clk, regwriteW, rsD, rtD, wregW, res, rd1D, rd2D);
 sl2 u_sl2(immD, immD_sl2);
@@ -84,6 +85,7 @@ floprc #(1) d7(clk, rst, flushE, pcsrcPD, pcsrcPE);
 floprc #(1) d8(clk, rst, flushE, pbranchD, pbranchE);
 floprc #(32) d9(clk, rst, flushE, fpcD, fpcE); // 预测错误时的pc
 floprc #(32) d10(clk, rst, flushE, pcD, pcE); // 预测错误时的pc
+floprc #(32) d11(clk, rst, flushE, saD, saE); // 预测错误时的pc
 
 floprc #(1) dc1(clk, rst, flushE, regwrite, regwriteE);
 floprc #(1) dc2(clk, rst, flushE, memtoreg, memtoregE);
@@ -98,7 +100,7 @@ mux2 #(5) u_mux2_rd(rtE, rdE, regdstE, wregE);
 mux3 #(32) u_mux3_srca(rd1E, res, aluoutM, forwardaE, srca);
 mux3 #(32) u_mux3_srcb(rd2E, res, aluoutM, forwardbE, srcbt);
 mux2 #(32) u_mux2_src(srcbt, immE, alusrcE, srcb);
-alu u_alu(srca, srcb, alucontrolE, aluoutE, overflow, zeroE);
+alu u_alu(srca, srcb, saE, alucontrolE, aluoutE, overflow, zeroE);
 
 assign pcsrcE = branchE & (srca == srcb); // execute阶段判断是否预测成功
 

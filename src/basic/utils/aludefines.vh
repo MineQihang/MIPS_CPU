@@ -9,6 +9,15 @@
 `define ALU_LUI             5'b00110
 `define ALU_ORI             5'b00111
 
+// 移位运算指令
+`define ALU_SLL             5'b01000
+`define ALU_SRL             5'b01001
+`define ALU_SRA             5'b01010
+`define ALU_SLLV            5'b01011
+`define ALU_SRLV            5'b01100
+`define ALU_SRAV            5'b01101
+
+
 // `define ALU_ADD             5'b0_0010
 // `define ALU_SUB             5'b0_0011
 // `define ALU_SLT             5'b0_0100

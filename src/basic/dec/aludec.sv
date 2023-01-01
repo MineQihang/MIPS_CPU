@@ -17,6 +17,12 @@ always @(*) begin
                 `OR:  alucontrol <= `ALU_OR;
                 `XOR: alucontrol <= `ALU_XOR;
                 `NOR: alucontrol <= `ALU_NOR;
+                `SLL: alucontrol <= `ALU_SLL;
+                `SRL: alucontrol <= `ALU_SRL;
+                `SRA: alucontrol <= `ALU_SRA;
+                `SLLV: alucontrol <= `ALU_SLLV;
+                `SRLV: alucontrol <= `ALU_SRLV;
+                `SRAV: alucontrol <= `ALU_SRAV;
             endcase
         `ANDI: alucontrol <= `ALU_ANDI;
         `XORI: alucontrol <= `ALU_XORI;

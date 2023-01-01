@@ -4,6 +4,7 @@
 
 module alu(
 	input wire[31:0] a,b,
+	input wire[4:0] sa,
 	input wire[4:0] op,
 	output reg[31:0] y,
 	output reg overflow,
@@ -11,6 +12,7 @@ module alu(
 );
 	always @(*) begin
 		case(op)
+			// 逻辑运算 
 			`ALU_AND:  y <= a & b;
 			`ALU_OR:   y <= a | b;
 			`ALU_XOR:  y <= a ^ b;
@@ -19,6 +21,14 @@ module alu(
 			`ALU_XORI: y <= a ^ b;
 			`ALU_LUI:  y <= {b[15:0], {16{1'b0}}};
 			`ALU_ORI:  y <= a | b;
+			// 移位运算
+			`ALU_SLL:  y <= b << sa;
+			`ALU_SRL:  y <= b >> sa;
+			`ALU_SRA:  y <= $signed(b) >>> sa;
+			`ALU_SLLV:  y <= b << a;
+			`ALU_SRLV:  y <= b >> a;
+			`ALU_SRAV:  y <= $signed(b) >>> a;
+
 			default:  y <= 32'b0;
 		endcase
 	end
