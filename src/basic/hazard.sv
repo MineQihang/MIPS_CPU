@@ -44,6 +44,7 @@ assign forwardbE = (rtE == 0) ? 2'b00 :
 // lw 访存冲突
 wire lwstallD;
 assign lwstallD = memtoregE & // 是否写入
+			      (rsD != 0 | rsE != 0) &
                   (rtE == rsD | rtE == rtD); // 判断decode阶段rs或rt的地址是否是lw指令要写入的地址
 // branch
 wire branchstallD;

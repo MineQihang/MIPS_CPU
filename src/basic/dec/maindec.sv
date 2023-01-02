@@ -4,26 +4,31 @@
 
 module maindec(
     input  wire[5:0] op,
-    output wire memtoreg, memwrite, branch, alusrc, regdst, regwrite, jump
+    output wire memtoreg, branch, alusrc, regdst, regwrite, jump,
+    output wire memwrite
 );
 
 reg[6:0] controls;
 
-assign {regwrite, regdst, alusrc, branch, memwrite, memtoreg, jump} = controls;
+assign {regwrite, regdst, alusrc, branch, memtoreg, jump, memwrite} = controls;
 always @(*) begin
     case (op)
-        `R_TYPE: controls <= 7'b1100000;  // R-type
-        6'b100011: controls <= 7'b1010010;  // lw
-        6'b101011: controls <= 7'b0010100;  // sw
+        `R_TYPE: controls <= 7'b1100000;
+        `SW: controls <= 7'b0010001;
+        `SH: controls <= 7'b0010001;
+        `SB: controls <= 7'b0010001;
+        `LB: controls <= 7'b1010100;
+        `LBU: controls <= 7'b1010100;
+        `LH: controls <= 7'b1010100;
+        `LHU: controls <= 7'b1010100;
+        `LW: controls <= 7'b1010100;
         `BEQ: controls <= 7'b0001000;
         `BNE: controls <= 7'b0001000;
         `BGTZ: controls <= 7'b0001000;
         `BLEZ: controls <= 7'b0001000;
         `REGIMM_INST: controls <= 7'b0001000;
-        6'b001000: controls <= 7'b1010000;  // addi
-        `J: controls <= 7'b0000001;
-        `JAL: controls <= 7'b0000001;
-        // new
+        `J: controls <= 7'b0000010;
+        `JAL: controls <= 7'b0000010;
         `ANDI: controls <= 7'b1010000;
         `XORI: controls <= 7'b1010000;
         `LUI:  controls <= 7'b1010000;

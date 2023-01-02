@@ -1,6 +1,7 @@
 `timescale 1ns / 1ps
 
 `include "./utils/aludefines.vh"
+`include "./utils/defines2.vh"
 
 module datapath(
     input wire clk, rst,
@@ -14,15 +15,16 @@ module datapath(
     output wire[31:0] aluout, writedata,
     input wire[31:0] readdata,
     input wire memwriteD,
-    output wire memwrite,
+    output wire[3:0] memwrite,
     output wire[31:0] instrD
 );
 
 // -------------------------data------------------------------
 // controller
-wire regwriteD0, regwriteD, regwriteE, memtoregE, memwriteE, branchE, alusrcE, regdstE;
+wire regwriteD0, regwriteD, regwriteE, memtoregE, branchE, alusrcE, regdstE;
+wire memwriteE, memwriteM;
 wire[4:0] alucontrolE;
-wire regwriteM, memtoregM, memwriteM, branchM;
+wire regwriteM, memtoregM, branchM;
 wire regwriteW, memtoregW;
 wire regwriteLD;
 // fetch
@@ -48,6 +50,8 @@ wire[31:0] instrE;
 wire[63:0] aluoutW;
 wire[31:0] readdataW;
 wire[31:0] pcsrcPM, pcsrcM;
+wire[31:0] instrM;
+wire[31:0] readdataM;
 
 // -------------------------logic------------------------------
 // pc transfer
@@ -155,6 +159,7 @@ floprc #(1) e5(clk, rst, flushM, pcsrcE, pcsrcM); // 真正的跳转
 floprc #(1) e6(clk, rst, flushM, pcsrcPE, pcsrcPM); // 预测的跳转
 floprc #(32) e7(clk, rst, flushM, fpcE, fpcM); // 预测错误时的pc
 floprc #(32) e8(clk, rst, flushM, pcE, pcM); // 预测错误时的pc
+floprc #(32) e9(clk, rst, flushM, instrE, instrM);
 
 floprc #(1) ec1(clk, rst, flushM, regwriteE, regwriteM);
 floprc #(1) ec2(clk, rst, flushM, memtoregE, memtoregM);
@@ -164,14 +169,47 @@ floprc #(3) ec5(clk, rst, flushM, flagE, flagM);
 
 // ========================Memory========================
 assign aluout = aluoutM[31:0];
-assign writedata = writedataM;
-assign memwrite = memwriteM;
+assign writedata = instrM[31:26] == `SW ? writedataM : 
+                   instrM[31:26] == `SH ? {2{writedataM[15:0]}} :
+                   instrM[31:26] == `SB ? {4{writedataM[7:0]}} : 32'b0;
+
+assign memwrite = instrM[31:26] == `SW ? 4'b1111 :
+                  instrM[31:26] == `SH ? (
+                    aluoutM[1] ? 4'b1100 : 4'b0011
+                  ) :
+                  instrM[31:26] == `SB ? (
+                    aluoutM[1:0] == 2'b00 ? 4'b0001 : 
+                    aluoutM[1:0] == 2'b01 ? 4'b0010 : 
+                    aluoutM[1:0] == 2'b10 ? 4'b0100 : 4'b1000
+                  ) : 4'b0000;
+
+assign readdataM = instrM[31:26] == `LW ? readdata : 
+                   instrM[31:26] == `LH ? (
+                    aluoutM[1] ? {{16{readdata[31]}}, readdata[31:16]} : 
+                                 {{16{readdata[15]}}, readdata[15:0]}
+                   ) : 
+                   instrM[31:26] == `LHU ? (
+                    aluoutM[1] ? {{16{1'b0}}, readdata[31:16]} : 
+                                 {{16{1'b0}}, readdata[15:0]}
+                   ) : 
+                   instrM[31:26] == `LB ? (
+                    aluoutM[1:0] == 2'b00 ? {{24{readdata[7]}}, readdata[7:0]} : 
+                    aluoutM[1:0] == 2'b01 ? {{24{readdata[15]}}, readdata[15:8]} : 
+                    aluoutM[1:0] == 2'b10 ? {{24{readdata[23]}}, readdata[23:16]} : 
+                                            {{24{readdata[31]}}, readdata[31:24]}
+                   ) : 
+                   instrM[31:26] == `LBU ? (
+                    aluoutM[1:0] == 2'b00 ? {{24{1'b0}}, readdata[7:0]} : 
+                    aluoutM[1:0] == 2'b01 ? {{24{1'b0}}, readdata[15:8]} : 
+                    aluoutM[1:0] == 2'b10 ? {{24{1'b0}}, readdata[23:16]} : 
+                                            {{24{1'b0}}, readdata[31:24]}
+                   ) : 32'b0;
 
 // 处理错误预测和更新PHT TODO[4]
 
 
 floprc #(64) m1(clk, rst, 1'b0, aluoutM, aluoutW);
-floprc #(32) m2(clk, rst, 1'b0, readdata, readdataW);
+floprc #(32) m2(clk, rst, 1'b0, readdataM, readdataW);
 floprc #(32) m3(clk, rst, 1'b0, wregM, wregW);
 floprc #(32) m4(clk, rst, flushM, pcM, pcW);
 
@@ -180,7 +218,7 @@ floprc #(1) mc2(clk, rst, 1'b0, memtoregM, memtoregW);
 floprc #(3) mc3(clk, rst, 1'b0, flagM, flagW);
 
 // ========================Writeback========================
-mux2 #(64) u_mux2_readdata(aluoutW, readdataW, memtoregW, res);
+mux2 #(64) u_mux2_readdata(aluoutW, {32'b0, readdataW}, memtoregW, res);
 
 // hazard
 hazard u_hazard(
