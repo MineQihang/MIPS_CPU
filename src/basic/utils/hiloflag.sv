@@ -25,6 +25,22 @@ module hiloflag(
                 flag1 <= 3'b001;
                 flag2 <= 3'b101;
             end
+            `ALU_MULT: begin
+                flag1 <= 3'b011;
+                flag2 <= 3'b111;
+            end
+            `ALU_MULTU: begin
+                flag1 <= 3'b011;
+                flag2 <= 3'b111;
+            end
+            `ALU_DIV: begin
+                flag1 <= 3'b011;
+                flag2 <= 3'b111;
+            end
+            `ALU_DIVU: begin
+                flag1 <= 3'b011;
+                flag2 <= 3'b111;
+            end
             default: begin
                 flag1 <= 3'b000;
                 flag2 <= 3'b000;

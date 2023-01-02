@@ -6,7 +6,7 @@ module alu(
 	input wire[31:0] a,b,
 	input wire[4:0] sa,
 	input wire[4:0] op,
-	output reg[31:0] y,
+	output reg[63:0] y,
 	output reg overflow,
 	output wire zero
 );
@@ -17,10 +17,7 @@ module alu(
 			`ALU_OR:   y <= a | b;
 			`ALU_XOR:  y <= a ^ b;
 			`ALU_NOR:  y <= ~(a | b);
-			`ALU_ANDI: y <= a & b;
-			`ALU_XORI: y <= a ^ b;
 			`ALU_LUI:  y <= {b[15:0], {16{1'b0}}};
-			`ALU_ORI:  y <= a | b;
 			// 移位运算
 			`ALU_SLL:  y <= b << sa;
 			`ALU_SRL:  y <= b >> sa;
@@ -33,7 +30,19 @@ module alu(
 			`ALU_MFLO: y <= a;
 			`ALU_MTHI: y <= a;
 			`ALU_MTLO: y <= a;
-			default:  y <= 32'b0;
+			// 算数运算
+			`ALU_ADD:  y <= a + b;
+			`ALU_ADDU: y <= a + b;
+			`ALU_SUB:  y <= a - b;
+			`ALU_SUBU: y <= a - b;
+			`ALU_SLT:  y <= $signed(a) < $signed(b);
+			`ALU_SLTU: y <= a < b;
+			`ALU_DIV:  y <= {$signed(a) % $signed(b), $signed(a) / $signed(b)};
+			`ALU_DIVU: y <= {a % b, a / b};
+			`ALU_MULT: y <= $signed(a) * $signed(b);
+			`ALU_MULTU: y <= {32'b0, a} * {32'b0, b};
+
+			default:  y <= 64'b0;
 		endcase
 	end
 endmodule

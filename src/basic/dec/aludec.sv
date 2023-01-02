@@ -29,11 +29,27 @@ always @(*) begin
                 `MFLO: alucontrol <= `ALU_MFLO;
                 `MTHI: alucontrol <= `ALU_MTHI;
                 `MTLO: alucontrol <= `ALU_MTLO;
+
+                `ADD:  alucontrol <= `ALU_ADD;
+                `ADDU: alucontrol <= `ALU_ADDU;
+                `SUB:  alucontrol <= `ALU_SUB;
+                `SUBU: alucontrol <= `ALU_SUBU;
+                `SLT:  alucontrol <= `ALU_SLT;
+                `SLTU: alucontrol <= `ALU_SLTU;
+                `DIV:  alucontrol <= `ALU_DIV;
+                `DIVU: alucontrol <= `ALU_DIVU;
+                `MULT: alucontrol <= `ALU_MULT;
+                `MULTU: alucontrol <= `ALU_MULTU;
             endcase
-        `ANDI: alucontrol <= `ALU_ANDI;
-        `XORI: alucontrol <= `ALU_XORI;
+        `ANDI: alucontrol <= `ALU_AND;
+        `XORI: alucontrol <= `ALU_XOR;
         `LUI:  alucontrol <= `ALU_LUI;
-        `ORI:  alucontrol <= `ALU_ORI;
+        `ORI:  alucontrol <= `ALU_OR;
+        `ADDI: alucontrol <= `ALU_ADD;
+        `ADDIU: alucontrol <= `ALU_ADDU;
+        `SLTI: alucontrol <= `ALU_SLT;
+        `SLTIU: alucontrol <= `ALU_SLTU;
+
         default: alucontrol <= `ALU_DONOTHING;
     endcase
 end

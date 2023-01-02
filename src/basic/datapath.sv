@@ -27,16 +27,19 @@ wire stallF, stallD, pcsrcPD, pbranchF, flushD, pmis;
 wire[31:0] nxt_pc, tmp_pc1, tmp_pc2, tmp_pc3, pc_plus4F, pc_plus4D, pc_plus4E, pc_plus4M, pc_branchD, fpcF, fpcD, fpcE, fpcM, pcD, pcE, pcM, pcW;
 // decode
 wire flushE, pcsrcE, pbranchD;
-wire[31:0] rd1D, rd2D, immD, immE, res, rd1E, rd2E, rd1_data, rd2_data, immD_sl2;
+wire[31:0] rd1D, rd2D, immD, immE, rd1E, rd2E, rd1_data, rd2_data, immD_sl2;
+wire[63:0] res;
 wire[4:0] rsD, rtD, rdD, rsE, rtE, rdE, wregE, wregM, wregW, saD, saE;
 wire forwardaD, forwardbD;
 wire[2:0] flagD_imm, flagD, flagE, flagM, flagW;
 // execute
 wire zeroE, flushM, pcsrcPE, pbranchE;
-wire[31:0] srca, srcbt, srcb, write, aluoutE, aluoutM, writedataM;
+wire[31:0] srca, srcbt, srcb, write, writedataM;
+wire[63:0] aluoutE, aluoutM;
 wire[1:0] forwardaE, forwardbE;
 // memory
-wire [31:0] aluoutW, readdataW;
+wire[63:0] aluoutW;
+wire[31:0] readdataW;
 wire[31:0] pcsrcPM, pcsrcM;
 
 // -------------------------logic------------------------------
@@ -63,13 +66,13 @@ assign rsD = instrD[25:21];
 assign rtD = instrD[20:16];
 assign rdD = instrD[15:11];
 assign saD = instrD[10:6];
-signext u_signext(instrD[15:0], immD);
-regfile u_regfile(clk, regwriteW, rsD, rtD, wregW, {{32{1'b0}}, res}, flagD_imm, flagW, rd1D, rd2D);
+signext u_signext(instrD[15:0], instrD[31:26], immD);
+regfile u_regfile(clk, regwriteW, rsD, rtD, wregW, res, flagD_imm, flagW, rd1D, rd2D);
 sl2 u_sl2(immD, immD_sl2);
 adder branch_adder(immD_sl2, pc_plus4D, pc_branchD);
 
-mux2 #(32) u_mux2_rd1t(rd1D, aluoutM, forwardaD, rd1_data);
-mux2 #(32) u_mux2_rd2t(rd2D, aluoutM, forwardbD, rd2_data);
+mux2 #(32) u_mux2_rd1t(rd1D, aluoutM[31:0], forwardaD, rd1_data);
+mux2 #(32) u_mux2_rd2t(rd2D, aluoutM[31:0], forwardbD, rd2_data);
 // assign pcsrcD = branch & (rd1_data == rd2_data ? 1'b1 : 1'b0);  // 提前分支
 assign pcsrcPD = branch & pbranchD;
 
@@ -102,8 +105,8 @@ floprc #(3) dc8(clk, rst, flushE, flagD, flagE);
 
 // ========================Execute========================
 mux2 #(5) u_mux2_rd(rtE, rdE, regdstE, wregE);
-mux3 #(32) u_mux3_srca(rd1E, res, aluoutM, forwardaE, srca);
-mux3 #(32) u_mux3_srcb(rd2E, res, aluoutM, forwardbE, srcbt);
+mux3 #(32) u_mux3_srca(rd1E, flagE[2] ? res[31:0] : (flagE[1] ? res[63:32] : res[31:0]), flagE[2] ? aluoutM[31:0] : (flagE[1] ? aluoutM[63:32] : aluoutM[31:0]), forwardaE, srca);
+mux3 #(32) u_mux3_srcb(rd2E, res[31:0], aluoutM[31:0], forwardbE, srcbt);
 mux2 #(32) u_mux2_src(srcbt, immE, alusrcE, srcb);
 alu u_alu(srca, srcb, saE, alucontrolE, aluoutE, overflow, zeroE);
 
@@ -112,7 +115,7 @@ assign pcsrcE = branchE & (srca == srcb); // execute阶段判断是否预测成�
 // 判断是否预测成功 TODO[3]
 
 floprc #(1) e1(clk, rst, flushM, zeroE, zero);
-floprc #(32) e2(clk, rst, flushM, aluoutE, aluoutM);
+floprc #(64) e2(clk, rst, flushM, aluoutE, aluoutM);
 floprc #(32) e3(clk, rst, flushM, srcbt, writedataM);
 floprc #(32) e4(clk, rst, flushM, wregE, wregM);
 floprc #(1) e5(clk, rst, flushM, pcsrcE, pcsrcM); // 真正的跳转
@@ -127,14 +130,14 @@ floprc #(1) ec4(clk, rst, flushM, branchE, branchM);
 floprc #(3) ec5(clk, rst, flushM, flagE, flagM);
 
 // ========================Memory========================
-assign aluout = aluoutM;
+assign aluout = aluoutM[31:0];
 assign writedata = writedataM;
 assign memwrite = memwriteM;
 
 // 处理错误预测和更新PHT TODO[4]
 
 
-floprc #(32) m1(clk, rst, 1'b0, aluoutM, aluoutW);
+floprc #(64) m1(clk, rst, 1'b0, aluoutM, aluoutW);
 floprc #(32) m2(clk, rst, 1'b0, readdata, readdataW);
 floprc #(32) m3(clk, rst, 1'b0, wregM, wregW);
 floprc #(32) m4(clk, rst, flushM, pcM, pcW);
@@ -144,7 +147,7 @@ floprc #(1) mc2(clk, rst, 1'b0, memtoregM, memtoregW);
 floprc #(3) mc3(clk, rst, 1'b0, flagM, flagW);
 
 // ========================Writeback========================
-mux2 #(32) u_mux2_readdata(aluoutW, readdataW, memtoregW, res);
+mux2 #(64) u_mux2_readdata(aluoutW, readdataW, memtoregW, res);
 
 // hazard
 hazard u_hazard(

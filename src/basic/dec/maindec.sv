@@ -1,5 +1,7 @@
 `timescale 1ns / 1ps
 
+`include "../utils/defines2.vh"
+
 module maindec(
     input  wire[5:0] op,
     output wire memtoreg, memwrite, branch, alusrc, regdst, regwrite, jump
@@ -17,11 +19,15 @@ always @(*) begin
         6'b001000: controls <= 7'b1010000;  // addi
         6'b000010: controls <= 7'b0000001;  // j
         // new
-        6'b001100: controls <= 7'b1010000;  // andi
-        6'b001110: controls <= 7'b1010000;  // xori
-        6'b001111: controls <= 7'b1010000;  // lui
-        6'b001101: controls <= 7'b1010000;  // ori
-        default:   controls <= 7'b0000000;  // default
+        `ANDI: controls <= 7'b1010000;
+        `XORI: controls <= 7'b1010000;
+        `LUI:  controls <= 7'b1010000;
+        `ORI:  controls <= 7'b1010000;
+        `ADDI: controls <= 7'b1010000;
+        `ADDIU: controls <= 7'b1010000;
+        `SLTI: controls <= 7'b1010000;
+        `SLTIU: controls <= 7'b1010000;
+        default:   controls <= 7'b0000000;
     endcase
 end
 
