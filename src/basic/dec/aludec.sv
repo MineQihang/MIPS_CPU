@@ -40,6 +40,9 @@ always @(*) begin
                 `DIVU: alucontrol <= `ALU_DIVU;
                 `MULT: alucontrol <= `ALU_MULT;
                 `MULTU: alucontrol <= `ALU_MULTU;
+
+                `JR: alucontrol <= `ALU_JR;
+                `JALR: alucontrol <= `ALU_JALR;
             endcase
         `ANDI: alucontrol <= `ALU_AND;
         `XORI: alucontrol <= `ALU_XOR;
@@ -49,8 +52,10 @@ always @(*) begin
         `ADDIU: alucontrol <= `ALU_ADDU;
         `SLTI: alucontrol <= `ALU_SLT;
         `SLTIU: alucontrol <= `ALU_SLTU;
+        `REGIMM_INST: alucontrol <= `ALU_DONOTHING;
+        `JAL: alucontrol <= `ALU_DONOTHING;
 
-        default: alucontrol <= `ALU_DONOTHING;
+        default: alucontrol <= `ALU_ZERO;
     endcase
 end
 

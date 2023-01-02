@@ -86,7 +86,7 @@ bppattern #(PHT_DEPTH, BHT_DEPTH) p2(
 
 // 选择哪种预测方法
 assign choice = CPHT[CPHT_indexF][1]; // CPHT[CPHT_indexF][1];
-assign pcsrcPF = (choice ? pcsrcPF_pattern : pcsrcPF_global); // 0->全局, 1->局部
+assign pcsrcPF = 1'b1; // (choice ? pcsrcPF_pattern : pcsrcPF_global); // 0->全局, 1->局部
 
 // 预测结果传播
 floprc #(1) fd1(clk, rst, flushD, pcsrcPF_pattern, pcsrcPD_pattern);

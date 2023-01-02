@@ -41,6 +41,9 @@ module alu(
 			`ALU_DIVU: y <= {a % b, a / b};
 			`ALU_MULT: y <= $signed(a) * $signed(b);
 			`ALU_MULTU: y <= {32'b0, a} * {32'b0, b};
+			`ALU_DONOTHING: y <= {32'b0, b};
+			`ALU_JR: y <= {32'b0, b};
+			`ALU_JALR: y <= {32'b0, b};
 
 			default:  y <= 64'b0;
 		endcase

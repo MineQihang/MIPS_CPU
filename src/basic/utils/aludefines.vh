@@ -32,7 +32,9 @@
 `define ALU_MULT            5'b10111
 `define ALU_MULTU           5'b11000
 
-
+// 跳转指令
+`define ALU_JR              5'b11001
+`define ALU_JALR            5'b11010
 
 // `define ALU_ADD             5'b0_0010
 // `define ALU_SUB             5'b0_0011
@@ -63,4 +65,5 @@
 // `define ALU_SRL_SA          5'b1_1100
 // `define ALU_SRA_SA          5'b1_1101
 //                             // 5'b1_1110
-`define ALU_DONOTHING       5'b11111
+`define ALU_DONOTHING       5'b11110
+`define ALU_ZERO            5'b11111

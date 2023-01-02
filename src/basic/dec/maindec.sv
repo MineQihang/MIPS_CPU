@@ -12,12 +12,17 @@ reg[6:0] controls;
 assign {regwrite, regdst, alusrc, branch, memwrite, memtoreg, jump} = controls;
 always @(*) begin
     case (op)
-        6'b000000: controls <= 7'b1100000;  // R-type
+        `R_TYPE: controls <= 7'b1100000;  // R-type
         6'b100011: controls <= 7'b1010010;  // lw
         6'b101011: controls <= 7'b0010100;  // sw
-        6'b000100: controls <= 7'b0001000;  // beq
+        `BEQ: controls <= 7'b0001000;
+        `BNE: controls <= 7'b0001000;
+        `BGTZ: controls <= 7'b0001000;
+        `BLEZ: controls <= 7'b0001000;
+        `REGIMM_INST: controls <= 7'b0001000;
         6'b001000: controls <= 7'b1010000;  // addi
-        6'b000010: controls <= 7'b0000001;  // j
+        `J: controls <= 7'b0000001;
+        `JAL: controls <= 7'b0000001;
         // new
         `ANDI: controls <= 7'b1010000;
         `XORI: controls <= 7'b1010000;

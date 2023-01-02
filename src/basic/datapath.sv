@@ -1,5 +1,7 @@
 `timescale 1ns / 1ps
 
+`include "./utils/aludefines.vh"
+
 module datapath(
     input wire clk, rst,
     input wire memtoreg, branch,
@@ -18,25 +20,30 @@ module datapath(
 
 // -------------------------data------------------------------
 // controller
-wire regwriteE, memtoregE, memwriteE, branchE, alusrcE, regdstE;
+wire regwriteD0, regwriteD, regwriteE, memtoregE, memwriteE, branchE, alusrcE, regdstE;
 wire[4:0] alucontrolE;
 wire regwriteM, memtoregM, memwriteM, branchM;
 wire regwriteW, memtoregW;
+wire regwriteLD;
 // fetch
 wire stallF, stallD, pcsrcPD, pbranchF, flushD, pmis;
-wire[31:0] nxt_pc, tmp_pc1, tmp_pc2, tmp_pc3, pc_plus4F, pc_plus4D, pc_plus4E, pc_plus4M, pc_branchD, fpcF, fpcD, fpcE, fpcM, pcD, pcE, pcM, pcW;
+wire[31:0] nxt_pc, tmp_pc1, tmp_pc2, tmp_pc3, tmp_pc4, pc_plus4F, pc_plus4D, pc_plus4E, pc_plus4M, pc_branchD, pc_branchE, fpcF, fpcD, fpcE, fpcM, pcD, pcE, pcM, pcW;
 // decode
 wire flushE, pcsrcE, pbranchD;
-wire[31:0] rd1D, rd2D, immD, immE, rd1E, rd2E, rd1_data, rd2_data, immD_sl2;
+wire[31:0] rd1D0, rd2D0, rd2D1, rd1D, rd2D, immD, immE, rd1E, rd2E, rd1_data, rd2_data, immD_sl2;
 wire[63:0] res;
 wire[4:0] rsD, rtD, rdD, rsE, rtE, rdE, wregE, wregM, wregW, saD, saE;
-wire forwardaD, forwardbD;
+wire[4:0] rtD0, rtE0;
+wire linkD, linkPCD, forwardaD, forwardbD;
 wire[2:0] flagD_imm, flagD, flagE, flagM, flagW;
+wire[5:0] op, opE;
+wire jr, jalr, jumpE, jrE, jalrE;
 // execute
-wire zeroE, flushM, pcsrcPE, pbranchE;
+wire zeroE, flushM, pcsrcPE, pbranchE, tbranch;
 wire[31:0] srca, srcbt, srcb, write, writedataM;
 wire[63:0] aluoutE, aluoutM;
 wire[1:0] forwardaE, forwardbE;
+wire[31:0] instrE;
 // memory
 wire[63:0] aluoutW;
 wire[31:0] readdataW;
@@ -45,11 +52,16 @@ wire[31:0] pcsrcPM, pcsrcM;
 // -------------------------logic------------------------------
 // pc transfer
 pc #(32) u_pc(clk, rst, ~stallF, pc_plus4F, tmp_pc1);
-mux2 #(32) u_mux_pcbr1(pc_plus4D, pc_branchD, pcsrcPD, tmp_pc2);
-mux2 #(32) u_mux_pcf(pc_plus4D, pc_branchD, ~pcsrcPD, fpcD);  // 预测失败时的pc
-mux2 #(32) u_mux_branch(tmp_pc1, tmp_pc2, branch, tmp_pc3);  // 是否分支
 
-mux2 #(32) u_mux_pc(tmp_pc3, {pc_plus4D[31:28], instrD[25:0], 2'b00}, jump, nxt_pc); // jump
+mux2 #(32) u_mux_pcbr1(pc_plus4E, pc_branchE, pcsrcPE, tmp_pc2);
+mux2 #(32) u_mux_pcf(pc_plus4E, pc_branchE, ~pcsrcPE, fpcE);  // 预测失败时的pc
+mux2 #(32) u_mux_branch(tmp_pc1, tmp_pc2, branchE, tmp_pc3);  // 是否分支
+
+assign jr = alucontrol == `ALU_JR;
+assign jalr = alucontrol == `ALU_JALR;
+mux2 #(32) u_mux_jump({pc_plus4E[31:28], instrE[25:0], 2'b00}, srca, jrE | jalrE, tmp_pc4);
+
+mux2 #(32) u_mux_pc(tmp_pc3, tmp_pc4, jumpE | jrE | jalrE, nxt_pc); // jump
 mux2 #(32) u_mux_pcbr2(nxt_pc, fpcM, pmis, pc); // 失败的pc
 
 
@@ -62,18 +74,31 @@ flopenrc #(1) f3(clk, rst, ~stallD, flushD, pbranchF, pbranchD);  // clk
 flopenrc #(32) f5(clk, rst, ~stallD, flushD, pc, pcD);  // 分支指令的pc
 
 // ========================Decode========================
+assign op = instrD[31:26];
 assign rsD = instrD[25:21];
-assign rtD = instrD[20:16];
+assign rtD0 = instrD[20:16];
 assign rdD = instrD[15:11];
 assign saD = instrD[10:6];
-signext u_signext(instrD[15:0], instrD[31:26], immD);
-regfile u_regfile(clk, regwriteW, rsD, rtD, wregW, res, flagD_imm, flagW, rd1D, rd2D);
+signext u_signext(instrD[15:0], op, immD);
+link u_link(op, rtD0, instrD[5:0], linkD, linkPCD);
+mux2 #(1) u_mux2_regwrite(regwrite, 1'b1, linkD, regwriteD0);
+mux2 #(1) u_mux2_regwrite2(regwriteD0, 1'b0, jr, regwriteD);
+mux2 #(5) u_mux2_rtD(rtD0, 5'b11111, linkD, rtD);
+regfile u_regfile(clk, regwriteW, rsD, rtD, wregW, res, flagD_imm, flagW, rd1_data, rd2_data);
 sl2 u_sl2(immD, immD_sl2);
 adder branch_adder(immD_sl2, pc_plus4D, pc_branchD);
 
-mux2 #(32) u_mux2_rd1t(rd1D, aluoutM[31:0], forwardaD, rd1_data);
-mux2 #(32) u_mux2_rd2t(rd2D, aluoutM[31:0], forwardbD, rd2_data);
+assign rd1D = rd1_data;
+// assign rd2D = rd2_data;
+mux2 #(32) u_mux2_pc8(rd2_data, pcD+8, linkPCD, rd2D);
+
+// mux2 #(32) u_mux_e2d1(rd1D0, aluoutE[31:0], (rsD != 0 & rsD == rtE & regwriteE), rd1D);
+// mux2 #(32) u_mux_e2d2(rd2D1, aluoutE[31:0], (rtD != 0 & rtD == rtE & regwriteE), rd2D);
+
+// mux2 #(32) u_mux2_rd1t(rd1_data, aluoutM[31:0], forwardaD, rd1_data);
+// mux2 #(32) u_mux2_rd2t(rd2D, aluoutM[31:0], forwardbD, rd2_data);
 // assign pcsrcD = branch & (rd1_data == rd2_data ? 1'b1 : 1'b0);  // 提前分支
+
 assign pcsrcPD = branch & pbranchD;
 
 // hilo
@@ -87,14 +112,18 @@ floprc #(5) d3(clk, rst, flushE, rsD, rsE);
 floprc #(5) d4(clk, rst, flushE, rtD, rtE);
 floprc #(5) d5(clk, rst, flushE, rdD, rdE);
 floprc #(32) d6(clk, rst, flushE, immD, immE);
-// floprc #(32) d7(clk, rst, flushE, pc_plus4D, pc_plus4E);
-floprc #(1) d7(clk, rst, flushE, pcsrcPD, pcsrcPE);
-floprc #(1) d8(clk, rst, flushE, pbranchD, pbranchE);
-floprc #(32) d9(clk, rst, flushE, fpcD, fpcE); // 预测错误时的pc
-floprc #(32) d10(clk, rst, flushE, pcD, pcE); // 预测错误时的pc
-floprc #(32) d11(clk, rst, flushE, saD, saE); // 预测错误时的pc
+floprc #(32) d7(clk, rst, flushE, pc_plus4D, pc_plus4E);
+floprc #(1) d8(clk, rst, flushE, pcsrcPD, pcsrcPE); 
+floprc #(1) d9(clk, rst, flushE, pbranchD, pbranchE);
+// floprc #(32) d10(clk, rst, flushE, fpcD, fpcE); // 预测错误时的pc
+floprc #(32) d11(clk, rst, flushE, pcD, pcE); // 预测错误时的pc
+floprc #(32) d12(clk, rst, flushE, saD, saE); // 预测错误时的pc
+floprc #(6) d13(clk, rst, flushE, op, opE); // 预测错误时的pc
+floprc #(5) d14(clk, rst, flushE, rtD0, rtE0);
+floprc #(32) d15(clk, rst, flushE, instrD, instrE);
+floprc #(32) d16(clk, rst, flushE, pc_branchD, pc_branchE);
 
-floprc #(1) dc1(clk, rst, flushE, regwrite, regwriteE);
+floprc #(1) dc1(clk, rst, flushE, regwriteD, regwriteE);
 floprc #(1) dc2(clk, rst, flushE, memtoreg, memtoregE);
 floprc #(1) dc3(clk, rst, flushE, memwriteD, memwriteE);
 floprc #(1) dc4(clk, rst, flushE, branch, branchE);
@@ -102,6 +131,9 @@ floprc #(5) dc5(clk, rst, flushE, alucontrol, alucontrolE);
 floprc #(1) dc6(clk, rst, flushE, alusrc, alusrcE);
 floprc #(1) dc7(clk, rst, flushE, regdst, regdstE);
 floprc #(3) dc8(clk, rst, flushE, flagD, flagE);
+floprc #(1) dc9(clk, rst, flushE, jump, jumpE);
+floprc #(1) dc10(clk, rst, flushE, jr, jrE);
+floprc #(1) dc11(clk, rst, flushE, jalr, jalrE);
 
 // ========================Execute========================
 mux2 #(5) u_mux2_rd(rtE, rdE, regdstE, wregE);
@@ -110,7 +142,8 @@ mux3 #(32) u_mux3_srcb(rd2E, res[31:0], aluoutM[31:0], forwardbE, srcbt);
 mux2 #(32) u_mux2_src(srcbt, immE, alusrcE, srcb);
 alu u_alu(srca, srcb, saE, alucontrolE, aluoutE, overflow, zeroE);
 
-assign pcsrcE = branchE & (srca == srcb); // execute阶段判断是否预测成功
+branchjudger u_branchjudger(srca, srcb, opE, rtE0, tbranch);
+assign pcsrcE = branchE & tbranch; // execute阶段判断是否预测成功
 
 // 判断是否预测成功 TODO[3]
 
