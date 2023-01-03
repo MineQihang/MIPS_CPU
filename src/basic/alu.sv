@@ -22,14 +22,14 @@ module alu(
 			`ALU_SLL:  y <= b << sa;
 			`ALU_SRL:  y <= b >> sa;
 			`ALU_SRA:  y <= $signed(b) >>> sa;
-			`ALU_SLLV: y <= b << a;
-			`ALU_SRLV: y <= b >> a;
-			`ALU_SRAV: y <= $signed(b) >>> a;
+			`ALU_SLLV: y <= b << a[4:0];
+			`ALU_SRLV: y <= b >> a[4:0];
+			`ALU_SRAV: y <= $signed(b) >>> a[4:0];
 			// 数据移动
-			`ALU_MFHI: y <= a;
-			`ALU_MFLO: y <= a;
-			`ALU_MTHI: y <= a;
-			`ALU_MTLO: y <= a;
+			`ALU_MFHI: y <= {a, 32'b0};
+			`ALU_MFLO: y <= {32'b0, a};
+			`ALU_MTHI: y <= {a, 32'b0};
+			`ALU_MTLO: y <= {32'b0, a};
 			// 算数运算
 			`ALU_ADD:  y <= a + b;
 			`ALU_ADDU: y <= a + b;

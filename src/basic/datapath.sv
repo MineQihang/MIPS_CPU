@@ -35,9 +35,9 @@ wire regwriteW, memtoregW;
 wire regwriteLD;
 // fetch
 wire stallF, stallD, pcsrcPD, pbranchF, flushD, pmis;
-wire[31:0] nxt_pc, tmp_pc1, tmp_pc2, tmp_pc3, tmp_pc4, pc_plus4F, pc_plus4D, pc_plus4E, pc_plus4M, pc_branchD, pc_branchE, fpcF, fpcD, fpcE, fpcM, pcD, pcE, pcM, pcW;
+wire[31:0] nxt_pc, tmp_pc1, tmp_pc2D, tmp_pc2E, tmp_pc3, tmp_pc4, pc_plus4F, pc_plus4D, pc_plus4E, pc_plus4M, pc_branchD, pc_branchE, fpcF, fpcD, fpcE, fpcM, pcD, pcE, pcM, pcW;
 // decode
-wire flushE, pcsrcE, pbranchD;
+wire flushE, pcsrcE, pbranchD, stallE;
 wire[31:0] rd1D0, rd2D0, rd2D1, rd1D, rd2D, immD, immE, rd1E, rd2E, rd1_data, rd2_data, immD_sl2;
 wire[63:0] res;
 wire[4:0] rsD, rtD, rdD, rsE, rtE, rdE, wregE, wregM, wregW, saD, saE;
@@ -47,7 +47,7 @@ wire[2:0] flagD_imm, flagD, flagE, flagM, flagW;
 wire[5:0] op, opE;
 wire jr, jalr, jumpE, jrE, jalrE;
 // execute
-wire zeroE, flushM, pcsrcPE, pbranchE, tbranch;
+wire zeroE, flushM, pcsrcPE, pbranchE, tbranch, stallM;
 wire[31:0] srca, srcbt, srcb, write, writedataM;
 wire[63:0] aluoutE, aluoutM;
 wire[1:0] forwardaE, forwardbE;
@@ -58,14 +58,15 @@ wire[31:0] readdataW;
 wire[31:0] pcsrcPM, pcsrcM;
 wire[31:0] instrM;
 wire[31:0] readdataM;
+wire stallW;
 
 // -------------------------logic------------------------------
 // pc transfer
 pc #(32) u_pc(clk, rst, ~stallF, pc_plus4F, tmp_pc1);
 
-mux2 #(32) u_mux_pcbr1(pc_plus4E, pc_branchE, pcsrcPE, tmp_pc2);
-mux2 #(32) u_mux_pcf(pc_plus4E, pc_branchE, ~pcsrcPE, fpcE);  // 预测失败时的pc
-mux2 #(32) u_mux_branch(tmp_pc1, tmp_pc2, branchE, tmp_pc3);  // 是否分支
+mux2 #(32) u_mux_pcbr1(pc_plus4D, pc_branchD, pcsrcPD, tmp_pc2D);
+mux2 #(32) u_mux_pcf(pc_plus4D, pc_branchD, ~pcsrcPD, fpcD);  // 预测失败时的pc
+mux2 #(32) u_mux_branch(tmp_pc1, tmp_pc2E, branchE, tmp_pc3);  // 是否分支
 
 assign jr = alucontrol == `ALU_JR;
 assign jalr = alucontrol == `ALU_JALR;
@@ -116,39 +117,41 @@ hiloflag u_hiloflag(alucontrol, flagD_imm, flagD);
 
 // 执行预测结果 TODO[2]
 
-floprc #(32) d1(clk, rst, flushE, rd1D, rd1E);
-floprc #(32) d2(clk, rst, flushE, rd2D, rd2E);
-floprc #(5) d3(clk, rst, flushE, rsD, rsE);
-floprc #(5) d4(clk, rst, flushE, rtD, rtE);
-floprc #(5) d5(clk, rst, flushE, rdD, rdE);
-floprc #(32) d6(clk, rst, flushE, immD, immE);
-floprc #(32) d7(clk, rst, flushE, pc_plus4D, pc_plus4E);
-floprc #(1) d8(clk, rst, flushE, pcsrcPD, pcsrcPE); 
-floprc #(1) d9(clk, rst, flushE, pbranchD, pbranchE);
-// floprc #(32) d10(clk, rst, flushE, fpcD, fpcE); // 预测错误时的pc
-floprc #(32) d11(clk, rst, flushE, pcD, pcE); // 预测错误时的pc
-floprc #(32) d12(clk, rst, flushE, saD, saE); // 预测错误时的pc
-floprc #(6) d13(clk, rst, flushE, op, opE); // 预测错误时的pc
-floprc #(5) d14(clk, rst, flushE, rtD0, rtE0);
-floprc #(32) d15(clk, rst, flushE, instrD, instrE);
-floprc #(32) d16(clk, rst, flushE, pc_branchD, pc_branchE);
+floprc #(32) d1(clk, rst, flushE | stallD, rd1D, rd1E);
+floprc #(32) d2(clk, rst, flushE | stallD, rd2D, rd2E);
+floprc #(5) d3(clk, rst, flushE | stallD, rsD, rsE);
+floprc #(5) d4(clk, rst, flushE | stallD, rtD, rtE);
+floprc #(5) d5(clk, rst, flushE | stallD, rdD, rdE);
+floprc #(32) d6(clk, rst, flushE | stallD, immD, immE);
+floprc #(32) d7(clk, rst, flushE | stallD, pc_plus4D, pc_plus4E);
+floprc #(1) d8(clk, rst, flushE | stallD, pcsrcPD, pcsrcPE); 
+floprc #(1) d9(clk, rst, flushE | stallD, pbranchD, pbranchE);
+floprc #(32) d10(clk, rst, 1'b0, fpcD, fpcE); // 预测错误时的pc
+floprc #(32) d11(clk, rst, 1'b0, pcD, pcE); // 预测错误时的pc
+floprc #(32) d12(clk, rst, flushE | stallD, saD, saE); // 预测错误时的pc
+floprc #(6) d13(clk, rst, flushE | stallD, op, opE); // 预测错误时的pc
+floprc #(5) d14(clk, rst, flushE | stallD, rtD0, rtE0);
+floprc #(32) d15(clk, rst, flushE | stallD, instrD, instrE);
+floprc #(32) d16(clk, rst, flushE | stallD, pc_branchD, pc_branchE);
+floprc #(32) d17(clk, rst, flushE | stallD, tmp_pc2D, tmp_pc2E);
 
-floprc #(1) dc1(clk, rst, flushE, regwriteD, regwriteE);
-floprc #(1) dc2(clk, rst, flushE, memtoreg, memtoregE);
-floprc #(1) dc3(clk, rst, flushE, memwriteD, memwriteE);
-floprc #(1) dc4(clk, rst, flushE, branch, branchE);
-floprc #(5) dc5(clk, rst, flushE, alucontrol, alucontrolE);
-floprc #(1) dc6(clk, rst, flushE, alusrc, alusrcE);
-floprc #(1) dc7(clk, rst, flushE, regdst, regdstE);
-floprc #(3) dc8(clk, rst, flushE, flagD, flagE);
-floprc #(1) dc9(clk, rst, flushE, jump, jumpE);
-floprc #(1) dc10(clk, rst, flushE, jr, jrE);
-floprc #(1) dc11(clk, rst, flushE, jalr, jalrE);
+floprc #(1) dc1(clk, rst, flushE | stallD, regwriteD, regwriteE);
+floprc #(1) dc2(clk, rst, flushE | stallD, memtoreg, memtoregE);
+floprc #(1) dc3(clk, rst, flushE | stallD, memwriteD, memwriteE);
+floprc #(1) dc4(clk, rst, flushE | stallD, branch, branchE);
+floprc #(5) dc5(clk, rst, flushE | stallD, alucontrol, alucontrolE);
+floprc #(1) dc6(clk, rst, flushE | stallD, alusrc, alusrcE);
+floprc #(1) dc7(clk, rst, flushE | stallD, regdst, regdstE);
+floprc #(3) dc8(clk, rst, flushE | stallD, flagD, flagE);
+floprc #(1) dc9(clk, rst, flushE | stallD, jump, jumpE);
+floprc #(1) dc10(clk, rst, flushE | stallD, jr, jrE);
+floprc #(1) dc11(clk, rst, flushE | stallD, jalr, jalrE);
+floprc #(1) dc12(clk, rst, flushE | stallD, stallD, stallE);
 
 // ========================Execute========================
 mux2 #(5) u_mux2_rd(rtE, rdE, regdstE, wregE);
-mux3 #(32) u_mux3_srca(rd1E, flagE[2] ? res[31:0] : (flagE[1] ? res[63:32] : res[31:0]), flagE[2] ? aluoutM[31:0] : (flagE[1] ? aluoutM[63:32] : aluoutM[31:0]), forwardaE, srca);
-mux3 #(32) u_mux3_srcb(rd2E, res[31:0], aluoutM[31:0], forwardbE, srcbt);
+mux3 #(32) u_mux3_srca(rd1E, (~flagE[2] & flagE[1]) | (~flagW[0] & flagW[1]) ? res[63:32] : res[31:0], (~flagE[2] & flagE[1]) | (~flagM[0] & flagM[1]) ? aluoutM[63:32] : aluoutM[31:0], forwardaE, srca);
+mux3 #(32) u_mux3_srcb(rd2E, (~flagE[2] & flagE[1]) | (~flagW[0] & flagW[1]) ? res[63:32] : res[31:0], (~flagE[2] & flagE[1]) | (~flagM[0] & flagM[1]) ? aluoutM[63:32] : aluoutM[31:0], forwardbE, srcbt);
 mux2 #(32) u_mux2_src(srcbt, immE, alusrcE, srcb);
 alu u_alu(srca, srcb, saE, alucontrolE, aluoutE, overflow, zeroE);
 
@@ -163,8 +166,8 @@ floprc #(32) e3(clk, rst, flushM, srcbt, writedataM);
 floprc #(5) e4(clk, rst, flushM, wregE, wregM);
 floprc #(1) e5(clk, rst, flushM, pcsrcE, pcsrcM); // 真正的跳转
 floprc #(1) e6(clk, rst, flushM, pcsrcPE, pcsrcPM); // 预测的跳转
-floprc #(32) e7(clk, rst, flushM, fpcE, fpcM); // 预测错误时的pc
-floprc #(32) e8(clk, rst, flushM, pcE, pcM); // 预测错误时的pc
+floprc #(32) e7(clk, rst, 1'b0, fpcE, fpcM); // 预测错误时的pc
+floprc #(32) e8(clk, rst, 1'b0, pcE, pcM); // 预测错误时的pc
 floprc #(32) e9(clk, rst, flushM, instrE, instrM);
 
 floprc #(1) ec1(clk, rst, flushM, regwriteE, regwriteM);
@@ -172,6 +175,7 @@ floprc #(1) ec2(clk, rst, flushM, memtoregE, memtoregM);
 floprc #(1) ec3(clk, rst, flushM, memwriteE, memwriteM);
 floprc #(1) ec4(clk, rst, flushM, branchE, branchM);
 floprc #(3) ec5(clk, rst, flushM, flagE, flagM);
+floprc #(1) ec6(clk, rst, flushM, stallE, stallM);
 
 // ========================Memory========================
 assign aluout = aluoutM[31:0];
@@ -217,11 +221,12 @@ assign readdataM = instrM[31:26] == `LW ? readdata :
 floprc #(64) m1(clk, rst, 1'b0, aluoutM, aluoutW);
 floprc #(32) m2(clk, rst, 1'b0, readdataM, readdataW);
 floprc #(5) m3(clk, rst, 1'b0, wregM, wregW);
-floprc #(32) m4(clk, rst, flushM, pcM, pcW);
+floprc #(32) m4(clk, rst, 1'b0, pcM, pcW);
 
 floprc #(1) mc1(clk, rst, 1'b0, regwriteM, regwriteW);
 floprc #(1) mc2(clk, rst, 1'b0, memtoregM, memtoregW);
 floprc #(3) mc3(clk, rst, 1'b0, flagM, flagW);
+floprc #(3) mc4(clk, rst, 1'b0, stallM, stallW);
 
 // ========================Writeback========================
 mux2 #(64) u_mux2_readdata(aluoutW, {32'b0, readdataW}, memtoregW, res);
@@ -277,8 +282,8 @@ branchpredictor bp(
 
 //debug
 assign debug_wb_pc = pcW;
-assign debug_wb_rf_wen = {4{regwriteW}};
+assign debug_wb_rf_wen = {4{regwriteW & ~stallW}};
 assign debug_wb_rf_wnum = wregW;
-assign debug_wb_rf_wdata = res[31:0]; //memtoregM ? readdataM: aluoutM[31:0] ;
+assign debug_wb_rf_wdata = flagW[1] ? res[63:32] : res[31:0]; //memtoregM ? readdataM: aluoutM[31:0] ;
 
 endmodule

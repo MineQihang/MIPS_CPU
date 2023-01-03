@@ -16,9 +16,11 @@ reg [63:0] hilo;
 always @(negedge clk) begin
     if(we3) begin
         case(flagW)
-            3'b110: hilo[63:32] <= wd3[31:0];
-            3'b101: hilo[31:0] <= wd3[31:0];
+            3'b110: hilo <= {wd3[63:32], hilo[31:0]};
+            3'b101: hilo <= {hilo[63:32], wd3[31:0]};
             3'b111: hilo <= wd3;
+            3'b010: rf[wa3] <= wd3[63:32];
+            3'b001: rf[wa3] <= wd3[31:0];
             default: rf[wa3] <= wd3[31:0];
         endcase
     end
