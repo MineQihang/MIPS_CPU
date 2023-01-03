@@ -32,7 +32,7 @@ always @(posedge clk) begin
     if(rst) begin
         GHR <= 0; GHR_E <= 0; GHR_Retired <= 0; GHR2_D <= 0; GHR2_E <= 0; GHR2 <= 0;
         for(i = 0; i < (1<<PHT_DEPTH); i = i + 1) begin
-            PHT[i] <= 2'b01;
+            // PHT[i] <= 2'b01;
         end
     end
 end

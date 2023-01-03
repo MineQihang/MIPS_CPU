@@ -7,7 +7,7 @@ module pc #(parameter WIDTH = 8)(
     );
 	always @(posedge clk, posedge rst) begin
 		if(rst) begin
-			q <= 0;
+			q <= 32'hbfc00000;
 		end else if(en) begin
 			q <= d;
 		end

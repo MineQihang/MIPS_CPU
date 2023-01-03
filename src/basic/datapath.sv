@@ -16,7 +16,13 @@ module datapath(
     input wire[31:0] readdata,
     input wire memwriteD,
     output wire[3:0] memwrite,
-    output wire[31:0] instrD
+    output wire[31:0] instrD,
+
+    //debug
+    output wire [31:0]  debug_wb_pc,      
+    output wire [3:0]   debug_wb_rf_wen,
+    output wire [4:0]   debug_wb_rf_wnum, 
+    output wire [31:0]  debug_wb_rf_wdata
 );
 
 // -------------------------data------------------------------
@@ -154,7 +160,7 @@ assign pcsrcE = branchE & tbranch; // execute阶段判断是否预测成功
 floprc #(1) e1(clk, rst, flushM, zeroE, zero);
 floprc #(64) e2(clk, rst, flushM, aluoutE, aluoutM);
 floprc #(32) e3(clk, rst, flushM, srcbt, writedataM);
-floprc #(32) e4(clk, rst, flushM, wregE, wregM);
+floprc #(5) e4(clk, rst, flushM, wregE, wregM);
 floprc #(1) e5(clk, rst, flushM, pcsrcE, pcsrcM); // 真正的跳转
 floprc #(1) e6(clk, rst, flushM, pcsrcPE, pcsrcPM); // 预测的跳转
 floprc #(32) e7(clk, rst, flushM, fpcE, fpcM); // 预测错误时的pc
@@ -210,7 +216,7 @@ assign readdataM = instrM[31:26] == `LW ? readdata :
 
 floprc #(64) m1(clk, rst, 1'b0, aluoutM, aluoutW);
 floprc #(32) m2(clk, rst, 1'b0, readdataM, readdataW);
-floprc #(32) m3(clk, rst, 1'b0, wregM, wregW);
+floprc #(5) m3(clk, rst, 1'b0, wregM, wregW);
 floprc #(32) m4(clk, rst, flushM, pcM, pcW);
 
 floprc #(1) mc1(clk, rst, 1'b0, regwriteM, regwriteW);
@@ -267,5 +273,12 @@ branchpredictor bp(
     flushE, // 清空D->X
     flushM // 清空X->M
 ); // 分支预测器
+
+
+//debug
+assign debug_wb_pc = pcW;
+assign debug_wb_rf_wen = {4{regwriteW}};
+assign debug_wb_rf_wnum = wregW;
+assign debug_wb_rf_wdata = res[31:0]; //memtoregM ? readdataM: aluoutM[31:0] ;
 
 endmodule

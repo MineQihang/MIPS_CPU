@@ -3,17 +3,22 @@
 `include "../utils/defines2.vh"
 
 module maindec(
-    input  wire[5:0] op,
+    input  wire[31:0] instrD,
     output wire memtoreg, branch, alusrc, regdst, regwrite, jump,
     output wire memwrite
 );
 
+wire[5:0] op;
+assign op = instrD[31:26];
 reg[6:0] controls;
 
 assign {regwrite, regdst, alusrc, branch, memtoreg, jump, memwrite} = controls;
 always @(*) begin
     case (op)
-        `R_TYPE: controls <= 7'b1100000;
+        `R_TYPE: case(instrD)
+            32'b0: controls <= 7'b0000000;
+            default: controls <= 7'b1100000;
+        endcase
         `SW: controls <= 7'b0010001;
         `SH: controls <= 7'b0010001;
         `SB: controls <= 7'b0010001;

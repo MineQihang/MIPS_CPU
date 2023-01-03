@@ -55,14 +55,14 @@ always @(*) begin
         `REGIMM_INST: alucontrol <= `ALU_DONOTHING;
         `JAL: alucontrol <= `ALU_DONOTHING;
 
-        `SW: alucontrol <= `ALU_DONOTHING;
-        `SH: alucontrol <= `ALU_DONOTHING;
-        `SB: alucontrol <= `ALU_DONOTHING;
-        `LB: alucontrol <= `ALU_DONOTHING;
-        `LBU: alucontrol <= `ALU_DONOTHING;
-        `LH: alucontrol <= `ALU_DONOTHING;
-        `LHU: alucontrol <= `ALU_DONOTHING;
-        `LW: alucontrol <= `ALU_DONOTHING;
+        `SW: alucontrol <= `ALU_ADD;
+        `SH: alucontrol <= `ALU_ADD;
+        `SB: alucontrol <= `ALU_ADD;
+        `LB: alucontrol <= `ALU_ADD;
+        `LBU: alucontrol <= `ALU_ADD;
+        `LH: alucontrol <= `ALU_ADD;
+        `LHU: alucontrol <= `ALU_ADD;
+        `LW: alucontrol <= `ALU_ADD;
 
         default: alucontrol <= `ALU_ZERO;
     endcase
