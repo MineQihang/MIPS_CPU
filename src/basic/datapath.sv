@@ -56,6 +56,7 @@ wire[63:0] aluoutE, aluoutM;
 wire[1:0] forwardaE, forwardbE;
 wire[31:0] instrE;
 wire tflushE;
+wire div_stall, div_stallM;
 // memory
 wire[63:0] aluoutW;
 wire[31:0] readdataW;
@@ -88,7 +89,7 @@ wire mfc0D, mtc0D, mfc0E, mtc0E, mfc0M, mtc0M;
 
 // -------------------------logic------------------------------
 // pc transfer
-pc #(32) u_pc(clk, rst, ~stallF, pc_plus4F, tmp_pc1);
+pc #(32) u_pc(clk, rst, ~(stallF | (div_stall & ~isexc)), pc_plus4F, tmp_pc1);
 
 mux2 #(32) u_mux_pcbr1(pc_plus4D, pc_branchD, pcsrcPD, tmp_pc2D);
 mux2 #(32) u_mux_pcf(pc_plus4D + 4, pc_branchD, ~pcsrcPD, fpcD);  // 预测失败时的pc
@@ -108,12 +109,13 @@ mux2 #(32) u_mux_pc3(nxt_pc, epc, eretM, pc); // ERET
 // ========================Fetch========================
 adder pc_adder4(pc, 32'h4, pc_plus4F);
 assign indelayslotF = jump | jr | jalr | (branch & ~tflushE);
+wire tflushD = flushD;
 
-flopenrc #(32) f1(clk, rst, ~stallD, flushD, instr, instrD);
-flopenrc #(32) f2(clk, rst, ~stallD, flushD, pc_plus4F, pc_plus4D);
-flopenrc #(1) f3(clk, rst, ~stallD, flushD, pbranchF, pbranchD);  // clk
-flopenrc #(32) f5(clk, rst, ~stallD, flushD, pc, pcD);  // 分支指令的pc
-flopenrc #(1) f6(clk, rst, ~stallD, flushD, indelayslotF, indelayslotD);
+flopenrc #(32) f1(clk, rst, ~(stallD | (div_stall & ~isexc)), tflushD, instr, instrD);
+flopenrc #(32) f2(clk, rst, ~(stallD | (div_stall & ~isexc)), tflushD, pc_plus4F, pc_plus4D);
+flopenrc #(1) f3(clk, rst, ~(stallD | (div_stall & ~isexc)), tflushD, pbranchF, pbranchD);  // clk
+flopenrc #(32) f5(clk, rst, ~(stallD | (div_stall & ~isexc)), tflushD, pc, pcD);  // 分支指令的pc
+flopenrc #(1) f6(clk, rst, ~(stallD | (div_stall & ~isexc)), tflushD, indelayslotF, indelayslotD);
 
 // ========================Decode========================
 assign op = instrD[31:26];
@@ -156,87 +158,89 @@ assign mfc0D = (instrD[31:26] == `SPECIAL3_INST && instrD[25:21] == `MFC0) ? 1'b
 assign mtc0D = (instrD[31:26] == `SPECIAL3_INST && instrD[25:21] == `MTC0) ? 1'b1 : 1'b0;
 
 // 执行预测结果 TODO[2]
-assign tflushE = flushE | stallD | isexc;
+assign tflushE = ((flushE | stallD) & ~div_stall) | isexc;
 
-floprc #(32) d1(clk, rst, tflushE, rd1D, rd1E);
-floprc #(32) d2(clk, rst, tflushE, rd2D, rd2E);
-floprc #(5) d3(clk, rst, tflushE, rsD, rsE);
-floprc #(5) d4(clk, rst, tflushE, rtD, rtE);
-floprc #(5) d5(clk, rst, tflushE, rdD, rdE);
-floprc #(32) d6(clk, rst, tflushE, immD, immE);
-floprc #(32) d7(clk, rst, tflushE, pc_plus4D, pc_plus4E);
-floprc #(1) d8(clk, rst, tflushE, pcsrcPD, pcsrcPE); 
-floprc #(1) d9(clk, rst, tflushE, pbranchD, pbranchE);
-floprc #(32) d10(clk, rst, isexc, fpcD, fpcE); // 预测错误时的pc
-floprc #(32) d11(clk, rst, isexc, pcD, pcE); // 预测错误时的pc
-floprc #(32) d12(clk, rst, tflushE, saD, saE); // 预测错误时的pc
-floprc #(6) d13(clk, rst, tflushE, op, opE); // 预测错误时的pc
-floprc #(5) d14(clk, rst, tflushE, rtD0, rtE0);
-floprc #(32) d15(clk, rst, tflushE, instrD, instrE);
-floprc #(32) d16(clk, rst, tflushE, pc_branchD, pc_branchE);
-floprc #(32) d17(clk, rst, tflushE, tmp_pc2D, tmp_pc2E);
+flopenrc #(32) d1(clk, rst, ~(stallE | div_stall), tflushE, rd1D, rd1E);
+flopenrc #(32) d2(clk, rst, ~(stallE | div_stall), tflushE, rd2D, rd2E);
+flopenrc #(5) d3(clk, rst, ~(stallE | div_stall), tflushE, rsD, rsE);
+flopenrc #(5) d4(clk, rst, ~(stallE | div_stall), tflushE, rtD, rtE);
+flopenrc #(5) d5(clk, rst, ~(stallE | div_stall), tflushE, rdD, rdE);
+flopenrc #(32) d6(clk, rst, ~(stallE | div_stall), tflushE, immD, immE);
+flopenrc #(32) d7(clk, rst, ~(stallE | div_stall), tflushE, pc_plus4D, pc_plus4E);
+flopenrc #(1) d8(clk, rst, ~(stallE | div_stall), tflushE, pcsrcPD, pcsrcPE); 
+flopenrc #(1) d9(clk, rst, ~(stallE | div_stall), tflushE, pbranchD, pbranchE);
+flopenrc #(32) d10(clk, rst, ~(stallE | div_stall), isexc, fpcD, fpcE); // 预测错误时的pc
+flopenrc #(32) d11(clk, rst, ~(stallE | div_stall), isexc, pcD, pcE); // 预测错误时的pc
+flopenrc #(32) d12(clk, rst, ~(stallE | div_stall), tflushE, saD, saE); // 预测错误时的pc
+flopenrc #(6) d13(clk, rst, ~(stallE | div_stall), tflushE, op, opE); // 预测错误时的pc
+flopenrc #(5) d14(clk, rst, ~(stallE | div_stall), tflushE, rtD0, rtE0);
+flopenrc #(32) d15(clk, rst, ~(stallE | div_stall), tflushE, instrD, instrE);
+flopenrc #(32) d16(clk, rst, ~(stallE | div_stall), tflushE, pc_branchD, pc_branchE);
+flopenrc #(32) d17(clk, rst, ~(stallE | div_stall), tflushE, tmp_pc2D, tmp_pc2E);
 
-floprc #(1) dc1(clk, rst, tflushE, regwriteD, regwriteE);
-floprc #(1) dc2(clk, rst, tflushE, memtoreg, memtoregE);
-floprc #(1) dc3(clk, rst, tflushE, memwriteD, memwriteE);
-floprc #(1) dc4(clk, rst, tflushE, branch, branchE);
-floprc #(5) dc5(clk, rst, tflushE, alucontrol, alucontrolE);
-floprc #(1) dc6(clk, rst, tflushE, alusrc, alusrcE);
-floprc #(1) dc7(clk, rst, tflushE, regdst, regdstE);
-floprc #(3) dc8(clk, rst, tflushE, flagD, flagE);
-floprc #(1) dc9(clk, rst, tflushE, jump, jumpE);
-floprc #(1) dc10(clk, rst, tflushE, jr, jrE);
-floprc #(1) dc11(clk, rst, tflushE, jalr, jalrE);
-floprc #(1) dc12(clk, rst, tflushE, stallD, stallE);
-floprc #(1) dc13(clk, rst, isexc, breakD, breakE);
-floprc #(1) dc14(clk, rst, isexc, syscallD, syscallE);
-floprc #(1) dc15(clk, rst, isexc, eretD, eretE);
-floprc #(1) dc16(clk, rst, tflushE, mfc0D, mfc0E);
-floprc #(1) dc17(clk, rst, tflushE, mtc0D, mtc0E);
-floprc #(1) dc18(clk, rst, isexc, indelayslotD, indelayslotE);
-floprc #(1) dc19(clk, rst, tflushE, instrErrorD, instrErrorE);
+flopenrc #(1) dc1(clk, rst, ~(stallE | div_stall), tflushE, regwriteD, regwriteE);
+flopenrc #(1) dc2(clk, rst, ~(stallE | div_stall), tflushE, memtoreg, memtoregE);
+flopenrc #(1) dc3(clk, rst, ~(stallE | div_stall), tflushE, memwriteD, memwriteE);
+flopenrc #(1) dc4(clk, rst, ~(stallE | div_stall), tflushE, branch, branchE);
+flopenrc #(5) dc5(clk, rst, ~(stallE | div_stall), tflushE, alucontrol, alucontrolE);
+flopenrc #(1) dc6(clk, rst, ~(stallE | div_stall), tflushE, alusrc, alusrcE);
+flopenrc #(1) dc7(clk, rst, ~(stallE | div_stall), tflushE, regdst, regdstE);
+flopenrc #(3) dc8(clk, rst, ~(stallE | div_stall), tflushE, flagD, flagE);
+flopenrc #(1) dc9(clk, rst, ~(stallE | div_stall), tflushE, jump, jumpE);
+flopenrc #(1) dc10(clk, rst, ~(stallE | div_stall), tflushE, jr, jrE);
+flopenrc #(1) dc11(clk, rst, ~(stallE | div_stall), tflushE, jalr, jalrE);
+flopenrc #(1) dc12(clk, rst, ~(stallE | div_stall), tflushE, stallD, stallE);
+flopenrc #(1) dc13(clk, rst, ~(stallE | div_stall), isexc, breakD, breakE);
+flopenrc #(1) dc14(clk, rst, ~(stallE | div_stall), isexc, syscallD, syscallE);
+flopenrc #(1) dc15(clk, rst, ~(stallE | div_stall), isexc, eretD, eretE);
+flopenrc #(1) dc16(clk, rst, ~(stallE | div_stall), tflushE, mfc0D, mfc0E);
+flopenrc #(1) dc17(clk, rst, ~(stallE | div_stall), tflushE, mtc0D, mtc0E);
+flopenrc #(1) dc18(clk, rst, ~(stallE | div_stall), isexc, indelayslotD, indelayslotE);
+flopenrc #(1) dc19(clk, rst, ~(stallE | div_stall), tflushE, instrErrorD, instrErrorE);
 
 // ========================Execute========================
 mux2 #(5) u_mux2_rd(rtE, rdE, regdstE, wregE);
 mux3 #(32) u_mux3_srca(rd1E, (~flagE[2] & flagE[1]) | (~flagW[0] & flagW[1]) ? res[63:32] : res[31:0], (~flagE[2] & flagE[1]) | (~flagM[0] & flagM[1]) ? aluoutM[63:32] : aluoutM[31:0], forwardaE, srca);
 mux3 #(32) u_mux3_srcb(rd2E, (~flagE[2] & flagE[1]) | (~flagW[0] & flagW[1]) ? res[63:32] : res[31:0], (~flagE[2] & flagE[1]) | (~flagM[0] & flagM[1]) ? aluoutM[63:32] : aluoutM[31:0], forwardbE, srcbt);
 mux2 #(32) u_mux2_src(srcbt, immE, alusrcE, srcb);
-alu u_alu(srca, srcb, saE, alucontrolE, aluoutE, overflow, zeroE);
+alu u_alu(clk, rst, div_stall,
+  srca, srcb, saE, alucontrolE, aluoutE, overflow, zeroE);
 
 branchjudger u_branchjudger(srca, srcb, opE, rtE0, tbranch);
 assign pcsrcE = branchE & tbranch; // execute阶段判断是否预测成功
 
 // 判断是否预测成功 TODO[3]
 assign tflushM = isexc;
+wire tstallM = stallM | div_stall;
 
-floprc #(1) e1(clk, rst, tflushM, zeroE, zero);
-floprc #(64) e2(clk, rst, tflushM, mtc0E ? {32'b0, srcb} : (mfc0E ? {32'b0, cp0data} : aluoutE), aluoutM);
-floprc #(32) e3(clk, rst, tflushM, srcbt, writedataM);
-floprc #(5) e4(clk, rst, tflushM, wregE, wregM);
-floprc #(1) e5(clk, rst, tflushM, pcsrcE, pcsrcM); // 真正的跳转
-floprc #(1) e6(clk, rst, tflushM, pcsrcPE, pcsrcPM); // 预测的跳转
-floprc #(32) e7(clk, rst, isexc, fpcE, fpcM); // 预测错误时的pc
-floprc #(32) e8(clk, rst, isexc, pcE, pcM); // 预测错误时的pc
-floprc #(32) e9(clk, rst, tflushM, instrE, instrM);
-floprc #(5) e10(clk, rst, tflushM, rdE, rdM);
-floprc #(5) e11(clk, rst, tflushM, overflow, overflowM);
+flopenrc #(1) e1(clk, rst, ~tstallM, tflushM, zeroE, zero);
+flopenrc #(64) e2(clk, rst, ~tstallM, tflushM, mtc0E ? {32'b0, srcb} : (mfc0E ? {32'b0, cp0data} : aluoutE), aluoutM);
+flopenrc #(32) e3(clk, rst, ~tstallM, tflushM, srcbt, writedataM);
+flopenrc #(5) e4(clk, rst, ~tstallM, tflushM, wregE, wregM);
+flopenrc #(1) e5(clk, rst, ~tstallM, tflushM, pcsrcE, pcsrcM); // 真正的跳转
+flopenrc #(1) e6(clk, rst, ~tstallM, tflushM, pcsrcPE, pcsrcPM); // 预测的跳转
+flopenrc #(32) e7(clk, rst, ~tstallM, isexc, fpcE, fpcM); // 预测错误时的pc
+flopenrc #(32) e8(clk, rst, ~tstallM, isexc, pcE, pcM); // 预测错误时的pc
+flopenrc #(32) e9(clk, rst, ~tstallM, tflushM, instrE, instrM);
+flopenrc #(5) e10(clk, rst, ~tstallM, tflushM, rdE, rdM);
+flopenrc #(5) e11(clk, rst, ~tstallM, tflushM, overflow, overflowM);
 
-floprc #(1) ec1(clk, rst, tflushM, regwriteE, regwriteM);
-floprc #(1) ec2(clk, rst, tflushM, memtoregE, memtoregM);
-floprc #(1) ec3(clk, rst, tflushM, memwriteE, memwriteM0);
-floprc #(1) ec4(clk, rst, tflushM, branchE, branchM);
-floprc #(3) ec5(clk, rst, tflushM, flagE, flagM);
-floprc #(1) ec6(clk, rst, tflushM, stallE, stallM);
-floprc #(1) ec7(clk, rst, isexc, breakE, breakM);
-floprc #(1) ec8(clk, rst, isexc, syscallE, syscallM);
-floprc #(1) ec9(clk, rst, isexc, eretE, eretM);
-floprc #(1) ec10(clk, rst, tflushM, mfc0E, mfc0M);
-floprc #(1) ec11(clk, rst, tflushM, mtc0E, mtc0M);
-floprc #(32) ec12(clk, rst, tflushM, statusE, statusM);
-floprc #(1) ec13(clk, rst, isexc, indelayslotE, indelayslotM);
-floprc #(1) ec14(clk, rst, tflushM, instrErrorE, instrErrorM);
-floprc #(32) ec15(clk, rst, tflushM, causeE, causeM);
-
+flopenrc #(1) ec1(clk, rst, ~tstallM, (tflushM | div_stall), regwriteE, regwriteM);
+flopenrc #(1) ec2(clk, rst, ~tstallM, tflushM, memtoregE, memtoregM);
+flopenrc #(1) ec3(clk, rst, ~tstallM, tflushM, memwriteE, memwriteM0);
+flopenrc #(1) ec4(clk, rst, ~tstallM, tflushM, branchE, branchM);
+flopenrc #(3) ec5(clk, rst, ~tstallM, tflushM, flagE, flagM);
+flopenrc #(1) ec6(clk, rst, ~tstallM, tflushM, stallE, stallM);
+flopenrc #(1) ec7(clk, rst, ~tstallM, isexc, breakE, breakM);
+flopenrc #(1) ec8(clk, rst, ~tstallM, isexc, syscallE, syscallM);
+flopenrc #(1) ec9(clk, rst, ~tstallM, isexc, eretE, eretM);
+flopenrc #(1) ec10(clk, rst, ~tstallM, tflushM, mfc0E, mfc0M);
+flopenrc #(1) ec11(clk, rst, ~tstallM, tflushM, mtc0E, mtc0M);
+flopenrc #(32) ec12(clk, rst, ~tstallM, tflushM, statusE, statusM);
+flopenrc #(1) ec13(clk, rst, ~tstallM, isexc, indelayslotE, indelayslotM);
+flopenrc #(1) ec14(clk, rst, ~tstallM, tflushM, instrErrorE, instrErrorM);
+flopenrc #(32) ec15(clk, rst, ~tstallM, tflushM, causeE, causeM);
+flopenrc #(1) ec16(clk, rst, 1'b1, 1'b0, div_stall, div_stallM);
 
 // ========================Memory========================
 assign opM = instrM[31:26];
@@ -331,16 +335,16 @@ cp0_reg u_cp0_reg(
 
 wire regwriteW0, isexcW;
 
-floprc #(64) m1(clk, rst, 1'b0, aluoutM, aluoutW);
-floprc #(32) m2(clk, rst, 1'b0, readdataM, readdataW);
-floprc #(5) m3(clk, rst, 1'b0, wregM, wregW);
-floprc #(32) m4(clk, rst, 1'b0, pcM, pcW);
+flopenrc #(64) m1(clk, rst, ~stallW, 1'b0, aluoutM, aluoutW);
+flopenrc #(32) m2(clk, rst, ~stallW, 1'b0, readdataM, readdataW);
+flopenrc #(5) m3(clk, rst, ~stallW, 1'b0, wregM, wregW);
+flopenrc #(32) m4(clk, rst, ~stallW, 1'b0, pcM, pcW);
 
-floprc #(1) mc1(clk, rst, 1'b0, regwriteM, regwriteW0);
-floprc #(1) mc2(clk, rst, 1'b0, memtoregM, memtoregW);
-floprc #(3) mc3(clk, rst, 1'b0, flagM, flagW);
-floprc #(3) mc4(clk, rst, 1'b0, stallM, stallW);
-floprc #(1) mc5(clk, rst, 1'b0, isexc, isexcW);
+flopenrc #(1) mc1(clk, rst, ~stallW, 1'b0, regwriteM, regwriteW0);
+flopenrc #(1) mc2(clk, rst, ~stallW, 1'b0, memtoregM, memtoregW);
+flopenrc #(3) mc3(clk, rst, ~stallW, 1'b0, flagM, flagW);
+flopenrc #(3) mc4(clk, rst, ~stallW, 1'b0, stallM, stallW);
+flopenrc #(1) mc5(clk, rst, ~stallW, 1'b0, isexc, isexcW);
 
 assign regwriteW = isexcW ? 1'b0 : regwriteW0;
 

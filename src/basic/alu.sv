@@ -3,13 +3,17 @@
 `include "./utils/aludefines.vh"
 
 module alu(
+	input wire clk, rst,
+	output wire div_stall,
+
 	input wire[31:0] a,b,
 	input wire[4:0] sa,
 	input wire[4:0] op,
-	output reg[63:0] y,
+	output reg[63:0] ans,
 	output reg overflow,
 	output wire zero
 );
+	reg[63:0] y;
 	always @(*) begin
 		case(op)
 			// 逻辑运算 
@@ -37,8 +41,8 @@ module alu(
 			`ALU_SUBU: y <= a - b;
 			`ALU_SLT:  y <= $signed(a) < $signed(b);
 			`ALU_SLTU: y <= a < b;
-			`ALU_DIV:  y <= {$signed(a) % $signed(b), $signed(a) / $signed(b)};
-			`ALU_DIVU: y <= {a % b, a / b};
+			// `ALU_DIV:  y <= {$signed(a) % $signed(b), $signed(a) / $signed(b)};
+			// `ALU_DIVU: y <= {a % b, a / b};
 			`ALU_MULT: y <= $signed(a) * $signed(b);
 			`ALU_MULTU: y <= {32'b0, a} * {32'b0, b};
 			`ALU_DONOTHING: y <= {32'b0, b};
@@ -48,6 +52,28 @@ module alu(
 			default:  y <= 64'b0;
 		endcase
 	end
+
+	wire div_valid = (op == `ALU_DIV || op == `ALU_DIVU) ? 1'b1 : 1'b0;
+	wire signed_div = (op == `ALU_DIV) ? 1'b1 : 1'b0;
+	wire ready;
+	wire start = div_valid & (~ready);
+	wire annul = 1'b0;
+	wire[63:0] div_ans;
+
+	div u_div(
+		.clk(~clk),
+		.rst(rst),
+		.signed_div_i(signed_div),
+		.a(a),
+		.b(b),
+		.start_i(start),
+		.annul_i(annul),
+		.result_o(div_ans),
+		.ready_o(ready)
+	);
+
+	assign div_stall = start;
+	assign ans = div_valid ? div_ans : y;
 
 	assign overflow = (op == `ALU_ADD || op == `ALU_SUB) & (y[32] ^ y[31]);
 endmodule

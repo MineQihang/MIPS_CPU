@@ -38,15 +38,15 @@ module div(
 	input wire										rst,
 	
 	input wire                    signed_div_i,
-	input wire[31:0]              opdata1_i,
-	input wire[31:0]		   				opdata2_i,
+	input wire[31:0]              a,
+	input wire[31:0]		   	  b,
 	input wire                    start_i,
 	input wire                    annul_i,
 	
 	output reg[63:0]             result_o,
 	output reg			             ready_o
 );
-
+	reg[31:0] opdata1_i, opdata2_i;
 	wire[32:0] div_temp;
 	reg[5:0] cnt;
 	reg[64:0] dividend;
@@ -56,6 +56,11 @@ module div(
 	reg[31:0] temp_op2;
 	
 	assign div_temp = {1'b0,dividend[63:32]} - {1'b0,divisor};
+
+	always @(posedge start_i) begin
+		opdata1_i <= a;
+		opdata2_i <= b;
+	end
 
 	always @ (posedge clk) begin
 		if (rst == `RstEnable) begin
