@@ -31,9 +31,9 @@ module alu(
 			`ALU_MTHI: y <= {a, 32'b0};
 			`ALU_MTLO: y <= {32'b0, a};
 			// 算数运算
-			`ALU_ADD:  y <= a + b;
+			`ALU_ADD:  y <= $signed(a) + $signed(b);
 			`ALU_ADDU: y <= a + b;
-			`ALU_SUB:  y <= a - b;
+			`ALU_SUB:  y <= $signed(a) - $signed(b);
 			`ALU_SUBU: y <= a - b;
 			`ALU_SLT:  y <= $signed(a) < $signed(b);
 			`ALU_SLTU: y <= a < b;
@@ -48,6 +48,8 @@ module alu(
 			default:  y <= 64'b0;
 		endcase
 	end
+
+	assign overflow = (op == `ALU_ADD || op == `ALU_SUB) & (y[32] ^ y[31]);
 endmodule
 
 

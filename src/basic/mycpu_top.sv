@@ -32,6 +32,7 @@ module mycpu_top(
     mips mips(
         .clk(~clk),
         .rst(~resetn),
+        .ext_int(ext_int),
         //instr
         // .inst_en(inst_en),
         .pc(pc),                    //pcF

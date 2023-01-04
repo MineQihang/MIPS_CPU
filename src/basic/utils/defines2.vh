@@ -102,6 +102,8 @@
 `define MTC0 5'b00100
 `define MFC0 5'b00000
 
+`define BRANCHS 6'b000001
+
 // ALU OP 4bit
 
 `define ANDI_OP 4'b0000
@@ -192,3 +194,17 @@
 `define CP0_REG_EPC    5'b01110          
 `define CP0_REG_PRID    5'b01111         
 `define CP0_REG_CONFIG    5'b10000       
+
+//Exception type
+`define EXC_TYPE_INT    5'h00
+`define EXC_TYPE_ADEL   5'h04
+`define EXC_TYPE_ADES   5'h05
+`define EXC_TYPE_SYS    5'h08
+`define EXC_TYPE_BP     5'h09
+`define EXC_TYPE_RI     5'h0a
+`define EXC_TYPE_OV     5'h0c
+`define EXC_TYPE_ERET   5'h0e  
+`define EXC_TYPE_NOEXC  5'h1f
+
+// 中断入口
+`define EXC_ENTRY       32'hbfc00380
