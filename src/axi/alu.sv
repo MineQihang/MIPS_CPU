@@ -63,7 +63,7 @@ reg[63:0] y;
 	wire[63:0] div_ans;
 
 	div u_div(
-		.clk(~clk),
+		.clk(clk),
 		.rst(rst),
 		.signed_div_i(signed_div),
 		.a(a),

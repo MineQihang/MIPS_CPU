@@ -168,7 +168,8 @@ assign mtc0D = (instrD[31:26] == `SPECIAL3_INST && instrD[25:21] == `MTC0) ? 1'b
 // 执行预测结果 TODO[2]
 // new1
 wire flushE_stallD = stallD & ~stall_all;
-assign tflushE = ((flushE)) | isexc |flushE_stallD; 
+wire flushE2;
+assign tflushE = ((flushE2)) | isexc |flushE_stallD; 
 // new1
 flopenrc #(32) d1(clk, rst, ~stall_all & ~stallD, tflushE, rd1D, rd1E);
 flopenrc #(32) d2(clk, rst, ~stall_all & ~stallD, tflushE, rd2D, rd2E);
@@ -200,13 +201,15 @@ flopenrc #(1)  dc9(clk, rst, ~stall_all & ~stallD, tflushE, jump, jumpE);
 flopenrc #(1) dc10(clk, rst, ~stall_all & ~stallD, tflushE, jr, jrE);
 flopenrc #(1) dc11(clk, rst, ~stall_all & ~stallD, tflushE, jalr, jalrE);
 // flopenrc #(1) dc12(clk, rst, ~stall_all, tflushE, stallD, stallE);
-floprc   #(1) dc13(clk, rst, isexc, breakD, breakE);
-floprc   #(1) dc14(clk, rst, isexc, syscallD, syscallE);
-floprc   #(1) dc15(clk, rst, isexc, eretD, eretE);
+flopenrc   #(1) dc13(clk, rst, ~stall_all, isexc, breakD, breakE);
+flopenrc   #(1) dc14(clk, rst, ~stall_all, isexc, syscallD, syscallE);
+flopenrc   #(1) dc15(clk, rst, ~stall_all, isexc, eretD, eretE);
 flopenrc #(1) dc16(clk, rst, ~stall_all & ~stallD, tflushE, mfc0D, mfc0E);
 flopenrc #(1) dc17(clk, rst, ~stall_all & ~stallD, tflushE, mtc0D, mtc0E);
-floprc   #(1) dc18(clk, rst, isexc, indelayslotD, indelayslotE);
+flopenrc   #(1) dc18(clk, rst, ~stall_all, isexc, indelayslotD, indelayslotE);
 flopenrc #(1) dc19(clk, rst, ~stall_all & ~stallD, tflushE, instrErrorD, instrErrorE);
+
+flopenrc #(1) dc20(clk, rst, ~stall_all & ~stallD, tflushE, flushE, flushE2);
 
 // ========================Execute========================
 mux2 #(5) u_mux2_rd(rtE, rdE, regdstE, wregE);
@@ -234,19 +237,19 @@ flopenrc #(32) e9(clk, rst, ~stall_all, tflushM, instrE, instrM);
 flopenrc #(5) e10(clk, rst, ~stall_all, tflushM, rdE, rdM);
 flopenrc #(5) e11(clk, rst, ~stall_all, tflushM, overflow, overflowM);
 
-flopenrc #(1)   ec1(clk, rst, ~stall_all, tflushM | div_stall, regwriteE, regwriteM);
+flopenrc #(1)   ec1(clk, rst, ~stall_all, tflushM, regwriteE, regwriteM);
 flopenrc #(1)   ec2(clk, rst, ~stall_all, tflushM, memtoregE, memtoregM);
 flopenrc #(1)   ec3(clk, rst, ~stall_all, tflushM, memwriteE, memwriteM0);
 flopenrc #(1)   ec4(clk, rst, ~stall_all, tflushM, branchE, branchM);
 flopenrc #(3)   ec5(clk, rst, ~stall_all, tflushM, flagE, flagM);
 // flopenrc #(1)   ec6(clk, rst, ~stall_all, tflushM, stallE, stallM);
-floprc #(1)   ec7(clk, rst, isexc, breakE, breakM);
-floprc #(1)   ec8(clk, rst, isexc, syscallE, syscallM);
-floprc #(1)   ec9(clk, rst, isexc, eretE, eretM);
+flopenrc #(1)   ec7(clk, rst, ~stall_all, isexc, breakE, breakM);
+flopenrc #(1)   ec8(clk, rst, ~stall_all, isexc, syscallE, syscallM);
+flopenrc #(1)   ec9(clk, rst, ~stall_all, isexc, eretE, eretM);
 flopenrc #(1)  ec10(clk, rst, ~stall_all, tflushM, mfc0E, mfc0M);
 flopenrc #(1)  ec11(clk, rst, ~stall_all, tflushM, mtc0E, mtc0M);
 flopenrc #(32) ec12(clk, rst, ~stall_all, tflushM, statusE, statusM);
-floprc #(1)  ec13(clk, rst, isexc, indelayslotE, indelayslotM);
+floprc #(1)  ec13(clk, rst, ~stall_all, indelayslotE, indelayslotM);
 flopenrc #(1)  ec14(clk, rst, ~stall_all, tflushM, instrErrorE, instrErrorM);
 flopenrc #(32) ec15(clk, rst, ~stall_all, tflushM, causeE, causeM);
 
@@ -303,7 +306,7 @@ assign pcError = (pcM[1:0] != 2'b00) ? 1'b1 : 1'b0;
 assign badvaddr = pcError ? pcM : 
                   (addrErrorS | addrErrorL) ? aluout[31:0] : 31'b0;
 
-// 异常与中�?
+// 异常与中断
 assign riM = instrErrorM;
 assign intM = statusM[0] && ~statusM[1] && (
               ( |(statusM[9:8] & causeM[9:8]) ) ||     //soft interupt
@@ -345,7 +348,7 @@ cp0_reg u_cp0_reg(
 wire regwriteW0, isexcW;
 
 //new1
-assign mem_enM = instrM[31];
+assign mem_enM = (memwriteM | (opM == `LW || opM == `LH || opM == `LHU || opM == `LB || opM == `LBU) ? 1'b1 : 1'b0) & ~isexc;
 
 // new1
 flopenrc #(64) m1(clk, rst, ~stall_all, 1'b0, aluoutM, aluoutW);

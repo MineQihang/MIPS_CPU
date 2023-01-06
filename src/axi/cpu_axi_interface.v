@@ -105,8 +105,8 @@ assign write_finish = waddr_rcv & wdata_rcv & (bvalid & bready);
 assign inst_addr_ok = ~read_sel & arvalid & arready;
 assign inst_data_ok = rvalid & (rid==4'd0);
 assign inst_rdata   = rdata;
-
-assign data_addr_ok = read_sel & arvalid & arready | data_req & waddr_rcv & wdata_rcv;    //读数据 | 写数据
+//  & wdata_rcv
+assign data_addr_ok = read_sel & arvalid & arready | data_req & waddr_rcv;    //读数据 | 写数据
 assign data_data_ok = rvalid & (rid==4'd1) | write_finish;
 assign data_rdata   = rdata;
 
