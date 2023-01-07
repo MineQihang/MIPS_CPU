@@ -53,10 +53,10 @@ wire[4:0] rtD0, rtE0;
 wire linkD, linkPCD, forwardaD, forwardbD;
 wire[2:0] flagD_imm, flagD, flagE, flagM, flagW;
 wire[5:0] op, opE;
-wire jr, jalr, jumpE, jrE, jalrE;
+wire jr, jalr, jumpE, jrE, jalrE, jal, jalE;
 // execute
 wire zeroE, flushM, pcsrcPE, pbranchE, tbranch, stallM;
-wire[31:0] srca, srcbt, srcb, write, writedataM;
+wire[31:0] srca, srcbt, srcbt1, srcb, write, writedataM;
 wire[63:0] aluoutE, aluoutM;
 wire[1:0] forwardaE, forwardbE;
 wire[31:0] instrE;
@@ -102,6 +102,7 @@ mux2 #(32) u_mux_branch(tmp_pc1, tmp_pc2E, branchE, tmp_pc3);  // 是否分支
 
 assign jr = alucontrol == `ALU_JR;
 assign jalr = alucontrol == `ALU_JALR;
+assign jal = op == `JAL;
 mux2 #(32) u_mux_jump({pc_plus4E[31:28], instrE[25:0], 2'b00}, srca, jrE | jalrE, tmp_pc4);
 
 mux2 #(32) u_mux_pc(tmp_pc3, tmp_pc4, jumpE | jrE | jalrE, tmp_pc5); // jump
@@ -115,7 +116,7 @@ mux2 #(32) u_mux_pc3(nxt_pc, epc, eretM, pc); // ERET
 adder pc_adder4(pc, 32'h4, pc_plus4F);
 assign indelayslotF = jump | jr | jalr | (branch & ~tflushE);
 wire tflushD = flushD;
-assign inst_en = ~isexc;
+assign inst_en = 1'b1;
 
 // new1
 flopenrc #(32) f1(clk, rst, ~(stallD | (div_stall & ~isexc) | stall_all), tflushD, instr, instrD);
@@ -200,7 +201,7 @@ flopenrc #(3)  dc8(clk, rst, ~stall_all & ~stallD, tflushE, flagD, flagE);
 flopenrc #(1)  dc9(clk, rst, ~stall_all & ~stallD, tflushE, jump, jumpE);
 flopenrc #(1) dc10(clk, rst, ~stall_all & ~stallD, tflushE, jr, jrE);
 flopenrc #(1) dc11(clk, rst, ~stall_all & ~stallD, tflushE, jalr, jalrE);
-// flopenrc #(1) dc12(clk, rst, ~stall_all, tflushE, stallD, stallE);
+flopenrc #(1) dc12(clk, rst, ~stall_all & ~stallD, tflushE, jal, jalE);
 flopenrc   #(1) dc13(clk, rst, ~stall_all, isexc, breakD, breakE);
 flopenrc   #(1) dc14(clk, rst, ~stall_all, isexc, syscallD, syscallE);
 flopenrc   #(1) dc15(clk, rst, ~stall_all, isexc, eretD, eretE);
@@ -215,7 +216,8 @@ flopenrc #(1) dc20(clk, rst, ~stall_all & ~stallD, tflushE, flushE, flushE2);
 mux2 #(5) u_mux2_rd(rtE, rdE, regdstE, wregE);
 mux3 #(32) u_mux3_srca(rd1E, (~flagE[2] & flagE[1]) | (~flagW[0] & flagW[1]) ? res[63:32] : res[31:0], (~flagE[2] & flagE[1]) | (~flagM[0] & flagM[1]) ? aluoutM[63:32] : aluoutM[31:0], forwardaE, srca);
 mux3 #(32) u_mux3_srcb(rd2E, (~flagE[2] & flagE[1]) | (~flagW[0] & flagW[1]) ? res[63:32] : res[31:0], (~flagE[2] & flagE[1]) | (~flagM[0] & flagM[1]) ? aluoutM[63:32] : aluoutM[31:0], forwardbE, srcbt);
-mux2 #(32) u_mux2_src(srcbt, immE, alusrcE, srcb);
+mux2 #(32) u_mux2_src(srcbt, immE, alusrcE, srcbt1);
+mux2 #(32) u_mux2_srcbj(srcbt1, pcE + 8, jalrE | jalE, srcb);
 alu u_alu(clk, rst, div_stall,
   srca, srcb, saE, alucontrolE, aluoutE, overflow, zeroE);
 
@@ -226,16 +228,16 @@ assign pcsrcE = branchE & tbranch; // execute阶段判断是否预测成功
 assign tflushM = isexc;
 // new1
 flopenrc #(1)  e1(clk, rst, ~stall_all, tflushM, zeroE, zero);
-flopenrc #(64) e2(clk, rst, ~stall_all, tflushM, mtc0E ? {32'b0, srcb} : (mfc0E ? {32'b0, cp0data} : aluoutE), aluoutM);
+flopenrc #(64) e2(clk, rst, ~stall_all, 1'b0, mtc0E ? {32'b0, srcb} : (mfc0E ? {32'b0, cp0data} : aluoutE), aluoutM);
 flopenrc #(32) e3(clk, rst, ~stall_all, tflushM, srcbt, writedataM);
 flopenrc #(5)  e4(clk, rst, ~stall_all, tflushM, wregE, wregM);
 flopenrc #(1)  e5(clk, rst, ~stall_all, tflushM, pcsrcE, pcsrcM); // 真正的跳�?
 flopenrc #(1)  e6(clk, rst, ~stall_all, tflushM, pcsrcPE, pcsrcPM); // 预测的跳�?
-flopenrc #(32) e7(clk, rst, ~stall_all, isexc, fpcE, fpcM); // 预测错误时的pc
-flopenrc #(32) e8(clk, rst, ~stall_all, isexc, pcE, pcM); // 预测错误时的pc
-flopenrc #(32) e9(clk, rst, ~stall_all, tflushM, instrE, instrM);
+flopenrc #(32) e7(clk, rst, ~stall_all, 1'b0, fpcE, fpcM); // 预测错误时的pc
+flopenrc #(32) e8(clk, rst, ~stall_all, 1'b0, pcE, pcM); // 预测错误时的pc
+flopenrc #(32) e9(clk, rst, ~stall_all, 1'b0, instrE, instrM);
 flopenrc #(5) e10(clk, rst, ~stall_all, tflushM, rdE, rdM);
-flopenrc #(5) e11(clk, rst, ~stall_all, tflushM, overflow, overflowM);
+flopenrc #(5) e11(clk, rst, ~stall_all, 1'b0, overflow, overflowM);
 
 flopenrc #(1)   ec1(clk, rst, ~stall_all, tflushM, regwriteE, regwriteM);
 flopenrc #(1)   ec2(clk, rst, ~stall_all, tflushM, memtoregE, memtoregM);
@@ -243,15 +245,15 @@ flopenrc #(1)   ec3(clk, rst, ~stall_all, tflushM, memwriteE, memwriteM0);
 flopenrc #(1)   ec4(clk, rst, ~stall_all, tflushM, branchE, branchM);
 flopenrc #(3)   ec5(clk, rst, ~stall_all, tflushM, flagE, flagM);
 // flopenrc #(1)   ec6(clk, rst, ~stall_all, tflushM, stallE, stallM);
-flopenrc #(1)   ec7(clk, rst, ~stall_all, isexc, breakE, breakM);
-flopenrc #(1)   ec8(clk, rst, ~stall_all, isexc, syscallE, syscallM);
-flopenrc #(1)   ec9(clk, rst, ~stall_all, isexc, eretE, eretM);
+flopenrc #(1)   ec7(clk, rst, ~stall_all, 1'b0, breakE, breakM);
+flopenrc #(1)   ec8(clk, rst, ~stall_all, 1'b0, syscallE, syscallM);
+flopenrc #(1)   ec9(clk, rst, ~stall_all, 1'b0, eretE, eretM);
 flopenrc #(1)  ec10(clk, rst, ~stall_all, tflushM, mfc0E, mfc0M);
 flopenrc #(1)  ec11(clk, rst, ~stall_all, tflushM, mtc0E, mtc0M);
-flopenrc #(32) ec12(clk, rst, ~stall_all, tflushM, statusE, statusM);
-floprc #(1)  ec13(clk, rst, ~stall_all, indelayslotE, indelayslotM);
-flopenrc #(1)  ec14(clk, rst, ~stall_all, tflushM, instrErrorE, instrErrorM);
-flopenrc #(32) ec15(clk, rst, ~stall_all, tflushM, causeE, causeM);
+flopenrc #(32) ec12(clk, rst, ~stall_all, 1'b0, statusE, statusM);
+flopenrc #(1)  ec13(clk, rst, ~stall_all, 1'b0, indelayslotE, indelayslotM);
+flopenrc #(1)  ec14(clk, rst, ~stall_all, 1'b0, instrErrorE, instrErrorM);
+flopenrc #(32) ec15(clk, rst, ~stall_all, 1'b0, causeE, causeM);
 
 
 // ========================Memory========================
@@ -362,7 +364,7 @@ flopenrc #(3) mc3(clk, rst, ~stall_all, 1'b0, flagM, flagW);
 // flopenrc #(3) mc4(clk, rst, ~stall_all, 1'b0, stallM, stallW);
 floprc #(1) mc5(clk, rst, 1'b0, isexc, isexcW);
 
-assign regwriteW = isexcW ? 1'b0 : regwriteW0;
+assign regwriteW = regwriteW0; //  isexcW ? 1'b0 : 
 
 // ========================Writeback========================
 mux2 #(64) u_mux2_readdata(aluoutW, {32'b0, readdataW}, memtoregW, res);

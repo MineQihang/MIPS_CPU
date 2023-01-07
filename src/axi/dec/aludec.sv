@@ -43,6 +43,8 @@ always @(*) begin
 
                 `JR: alucontrol <= `ALU_JR;
                 `JALR: alucontrol <= `ALU_JALR;
+
+                default: alucontrol <= `ALU_ZERO;
             endcase
         `ANDI: alucontrol <= `ALU_AND;
         `XORI: alucontrol <= `ALU_XOR;

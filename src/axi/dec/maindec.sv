@@ -38,7 +38,7 @@ always @(*) begin
         `BLEZ: controls <= 7'b0001000;
         `REGIMM_INST: controls <= 7'b0001000;
         `J: controls <= 7'b0000010;
-        `JAL: controls <= 7'b0000010;
+        `JAL: controls <= 7'b1000010;
         `ANDI: controls <= 7'b1010000;
         `XORI: controls <= 7'b1010000;
         `LUI:  controls <= 7'b1010000;
