@@ -146,7 +146,7 @@ module d_cache (
     // [New]究竟要写哪个地址?
     assign cache_data_addr  = write_req ? w_address : r_address;
     // [New]写进去的数据一定是原本Cache line的数据
-    assign cache_data_wdata = c_block;
+    assign cache_data_wdata = hit ? c_block : cache_block[index][replace_num];
 
 //=================================改变Cache====================================
     //保存地址中的tag, index，防止addr发生改变
@@ -208,6 +208,8 @@ module d_cache (
             // 原来: if(cpu_data_wr & cpu_data_req & hit) begin 少了cpu_data_wr 因为更新LRU是都要做的
             if(cpu_data_req & hit) begin
                 // 更新Cache line
+                cache_valid[index][hit_num] <= 1'b1;
+                cache_tag  [index][hit_num] <= tag;
                 if(cpu_data_wr) begin
                     cache_dirty[index][hit_num] <= 1;
                     cache_block[index][hit_num] <= write_cache_data;
@@ -262,12 +264,12 @@ module d_cache (
         end
     end
 
-    wire debug_valid = cache_valid[10'h17b][0];
-    wire debug_valid2 = cache_valid[index_save][replace_num];
-    wire[TAG_WIDTH-1: 0] debug_tag1 = cache_tag[10'h17b][2'b00];
-    wire[TAG_WIDTH-1: 0] debug_tag2 = cache_tag[10'h17b][2'b01];
-    wire[TAG_WIDTH-1: 0] debug_tag3 = cache_tag[10'h17b][2'b10];
-    wire[TAG_WIDTH-1: 0] debug_tag4 = cache_tag[10'h17b][2'b11];
-    wire debug_valid3 = cache_valid[index][0];
-    wire [1:0] debug_invaild_num = ~cache_valid[index][0] ? 0 : 3;
+    wire debug_valid = cache_valid[10'h197][0];
+    // wire debug_valid2 = cache_valid[index_save][replace_num];
+    wire[TAG_WIDTH-1: 0] debug_tag1 = cache_tag[10'h197][2'b00];
+    wire[TAG_WIDTH-1: 0] debug_tag2 = cache_tag[10'h197][2'b01];
+    wire[TAG_WIDTH-1: 0] debug_tag3 = cache_tag[10'h197][2'b10];
+    wire[TAG_WIDTH-1: 0] debug_tag4 = cache_tag[10'h197][2'b11];
+    // wire debug_valid3 = cache_valid[index][0];
+    // wire [1:0] debug_invaild_num = ~cache_valid[index][0] ? 0 : 3;
 endmodule
