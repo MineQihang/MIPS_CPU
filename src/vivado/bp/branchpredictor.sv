@@ -43,7 +43,7 @@ integer i; // 循环初始化用
 always @(posedge clk) begin
     if(rst) begin
         for(i = 0; i < (1<<PHT_DEPTH); i=i+1) begin
-            // CPHT[i] <= 2'b01;
+            CPHT[i] <= 2'b01;
         end
     end
 end
