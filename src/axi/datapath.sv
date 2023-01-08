@@ -89,6 +89,8 @@ wire[31:0] epc;
 wire[31:0] statusE, statusM, causeE, causeM;
 wire instrErrorE, instrErrorM;
 
+wire flushE_stallD ;
+
 // c0
 wire mfc0D, mtc0D, mfc0E, mtc0E, mfc0M, mtc0M;
 
@@ -98,14 +100,15 @@ pc #(32) u_pc(clk, rst, ~(stallF | (div_stall & ~isexc) | stall_all), pc_plus4F,
 
 mux2 #(32) u_mux_pcbr1(pc_plus4D, pc_branchD, pcsrcPD, tmp_pc2D);
 mux2 #(32) u_mux_pcf(pc_plus4D + 4, pc_branchD, ~pcsrcPD, fpcD);  // 预测失败时的pc
-mux2 #(32) u_mux_branch(tmp_pc1, tmp_pc2E, branchE, tmp_pc3);  // 是否分支
 
 assign jr = alucontrol == `ALU_JR;
 assign jalr = alucontrol == `ALU_JALR;
 assign jal = op == `JAL;
-mux2 #(32) u_mux_jump({pc_plus4E[31:28], instrE[25:0], 2'b00}, srca, jrE | jalrE, tmp_pc4);
+mux2 #(32) u_mux_jump({pc_plus4E[31:28], instrE[25:0], 2'b00}, srca, jrE | jalrE, tmp_pc3);
 
-mux2 #(32) u_mux_pc(tmp_pc3, tmp_pc4, jumpE | jrE | jalrE, tmp_pc5); // jump
+mux2 #(32) u_mux_pc(tmp_pc1, tmp_pc3, (jumpE | jrE | jalrE) & ~tflushE, tmp_pc4); // jump
+
+mux2 #(32) u_mux_branch(tmp_pc4, tmp_pc2E, (branchE & ~tflushE), tmp_pc5);  // 是否分支
 
 mux2 #(32) u_mux_pcbr2(tmp_pc5, fpcM, pmis, tmp_pc6); // 失败的pc
 
@@ -114,7 +117,7 @@ mux2 #(32) u_mux_pc3(nxt_pc, epc, eretM, pc); // ERET
 
 // ========================Fetch========================
 adder pc_adder4(pc, 32'h4, pc_plus4F);
-assign indelayslotF = jump | jr | jalr | (branch & ~tflushE);
+assign indelayslotF = (jump | jr | jalr | branch) & ~tflushE;
 wire tflushD = flushD;
 assign inst_en = 1'b1;
 
@@ -168,9 +171,9 @@ assign mtc0D = (instrD[31:26] == `SPECIAL3_INST && instrD[25:21] == `MTC0) ? 1'b
 
 // 执行预测结果 TODO[2]
 // new1
-wire flushE_stallD = stallD & ~stall_all;
+assign flushE_stallD = stallD & ~stall_all;
 wire flushE2;
-assign tflushE = ((flushE2)) | isexc |flushE_stallD; 
+assign tflushE = flushE2 | isexc |flushE_stallD; 
 // new1
 flopenrc #(32) d1(clk, rst, ~stall_all & ~stallD, tflushE, rd1D, rd1E);
 flopenrc #(32) d2(clk, rst, ~stall_all & ~stallD, tflushE, rd2D, rd2E);
@@ -183,7 +186,7 @@ flopenrc #(1)  d8(clk, rst, ~stall_all & ~stallD, tflushE, pcsrcPD, pcsrcPE);
 flopenrc #(1)  d9(clk, rst, ~stall_all & ~stallD, tflushE, pbranchD, pbranchE);
 flopenrc #(32) d10(clk, rst, ~stall_all & ~stallD, isexc, fpcD, fpcE); // 预测错误时的pc
 flopenrc #(32) d11(clk, rst, ~stall_all & ~stallD, isexc, pcD, pcE); // 预测错误时的pc
-flopenrc #(32) d12(clk, rst, ~stall_all & ~stallD, tflushE, saD, saE); // 预测错误时的pct
+flopenrc #(5) d12(clk, rst, ~stall_all & ~stallD, tflushE, saD, saE); // 预测错误时的pct
 flopenrc #(6)  d13(clk, rst, ~stall_all & ~stallD, tflushE, op, opE); // 预测错误时的pct
 flopenrc #(5)  d14(clk, rst, ~stall_all & ~stallD, tflushE, rtD0, rtE0);
 flopenrc #(32) d15(clk, rst, ~stall_all & ~stallD, tflushE, instrD, instrE);
@@ -237,7 +240,7 @@ flopenrc #(32) e7(clk, rst, ~stall_all, 1'b0, fpcE, fpcM); // 预测错误时的
 flopenrc #(32) e8(clk, rst, ~stall_all, 1'b0, pcE, pcM); // 预测错误时的pc
 flopenrc #(32) e9(clk, rst, ~stall_all, 1'b0, instrE, instrM);
 flopenrc #(5) e10(clk, rst, ~stall_all, tflushM, rdE, rdM);
-flopenrc #(5) e11(clk, rst, ~stall_all, 1'b0, overflow, overflowM);
+flopenrc #(1) e11(clk, rst, ~stall_all, 1'b0, overflow, overflowM);
 
 flopenrc #(1)   ec1(clk, rst, ~stall_all, tflushM, regwriteE, regwriteM);
 flopenrc #(1)   ec2(clk, rst, ~stall_all, tflushM, memtoregE, memtoregM);
@@ -367,6 +370,8 @@ floprc #(1) mc5(clk, rst, 1'b0, isexc, isexcW);
 assign regwriteW = regwriteW0; //  isexcW ? 1'b0 : 
 
 // ========================Writeback========================
+assign stallW = 1'b0;
+
 mux2 #(64) u_mux2_readdata(aluoutW, {32'b0, readdataW}, memtoregW, res);
 
 // hazard

@@ -78,6 +78,7 @@ reg[63:0] y;
 	assign ans = div_valid ? div_ans : y;
 
 	assign overflow = (op == `ALU_ADD || op == `ALU_SUB) & (y[32] ^ y[31]);
+	assign zero = 1'b0;
 endmodule
 
 

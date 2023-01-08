@@ -59,6 +59,7 @@ always @(posedge clk) begin
 end
 
 assign PHT_indexM = {hashed_pcM, GHR_Retired};
+wire [1:0] next_state;
 counter2 pht_update_global(PHT[PHT_indexM], pcsrcM, next_state); // 计算对应PHT表项下一个状态
 always @(posedge clk) begin
     if(branchM) begin
