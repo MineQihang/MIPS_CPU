@@ -22,17 +22,17 @@ module d_cache (
 );
 //==============================Cache配置与访问=================================
     //Cache配置
-    parameter INDEX_WIDTH  = 10, OFFSET_WIDTH = 2;
-    localparam TAG_WIDTH    = 32 - INDEX_WIDTH - OFFSET_WIDTH;
+    parameter INDEX_WIDTH = 10, OFFSET_WIDTH = 2, DATA_WIDTH = 32;
+    localparam TAG_WIDTH = 32 - INDEX_WIDTH - OFFSET_WIDTH;
     localparam CACHE_DEEPTH = 1 << INDEX_WIDTH;
     
     
     //Cache存储单元
-    reg [2:0]           cache_pLRU  [CACHE_DEEPTH - 1 : 0]; // 记录是否最近被使用的
-    reg                 cache_dirty [CACHE_DEEPTH - 1 : 0][3 : 0];
-    reg                 cache_valid [CACHE_DEEPTH - 1 : 0][3 : 0];
-    reg [TAG_WIDTH-1:0] cache_tag   [CACHE_DEEPTH - 1 : 0][3 : 0];
-    reg [31:0]          cache_block [CACHE_DEEPTH - 1 : 0][3 : 0];
+    reg [2:0]              cache_pLRU  [CACHE_DEEPTH - 1 : 0]; // 记录是否最近被使用的
+    reg [3:0]              cache_dirty [CACHE_DEEPTH - 1 : 0];
+    reg [3:0]              cache_valid [CACHE_DEEPTH - 1 : 0];
+    reg [4*TAG_WIDTH-1:0]  cache_tag   [CACHE_DEEPTH - 1 : 0];
+    reg [4*DATA_WIDTH-1:0] cache_block [CACHE_DEEPTH - 1 : 0];
 
     //访问地址分解
     wire [OFFSET_WIDTH-1:0] offset;
@@ -47,16 +47,19 @@ module d_cache (
     wire hit, miss; // [New]命中了哪个cache line
     wire [1:0] hit_num;
     wire [31:0] c_block; // 取出命中的block
-    assign hit_way[0] = cache_valid[index][0] & (cache_tag[index][0]==tag);
-    assign hit_way[1] = cache_valid[index][1] & (cache_tag[index][1]==tag);
-    assign hit_way[2] = cache_valid[index][2] & (cache_tag[index][2]==tag);
-    assign hit_way[3] = cache_valid[index][3] & (cache_tag[index][3]==tag);
+    assign hit_way[0] = (cache_tag[index][1*TAG_WIDTH-1:0*TAG_WIDTH]==tag) & cache_valid[index][0];
+    assign hit_way[1] = (cache_tag[index][2*TAG_WIDTH-1:1*TAG_WIDTH]==tag) & cache_valid[index][1];
+    assign hit_way[2] = (cache_tag[index][3*TAG_WIDTH-1:2*TAG_WIDTH]==tag) & cache_valid[index][2];
+    assign hit_way[3] = (cache_tag[index][4*TAG_WIDTH-1:3*TAG_WIDTH]==tag) & cache_valid[index][3];
     assign hit = hit_way[0] | hit_way[1] | hit_way[2] | hit_way[3];  //cache line的valid位为1，且tag与地址中tag相等
     assign miss = ~hit;
     assign hit_num = hit_way[0] ? 0 :
                      hit_way[1] ? 1 : 
                      hit_way[2] ? 2 : 3;
-    assign c_block = cache_block[index][hit_num];
+    assign c_block = (hit_num==0) ? cache_block[index][1*DATA_WIDTH-1:0*DATA_WIDTH] : 
+                     (hit_num==1) ? cache_block[index][2*DATA_WIDTH-1:1*DATA_WIDTH] :
+                     (hit_num==2) ? cache_block[index][3*DATA_WIDTH-1:2*DATA_WIDTH] :
+                                    cache_block[index][4*DATA_WIDTH-1:3*DATA_WIDTH] ;
 
     // [New]判断是否有无效块
     wire valid;
@@ -115,7 +118,12 @@ module d_cache (
     wire [31:0] r_address;  // 读地址
     wire [31:0] w_address;  // 写地址
     assign r_address = {cpu_data_addr[31:2], 2'b00};  // 装入地址为cpu读取地址
-    assign w_address = {cache_tag[index][replace_num], index, 2'b00};  // [New] 写回地址为脏数据地址
+    // [New] 写回地址为脏数据地址
+    wire[TAG_WIDTH-1: 0] cache_old_tag = (replace_num==0) ? cache_tag[index][1*TAG_WIDTH-1:0*TAG_WIDTH] :
+                                         (replace_num==1) ? cache_tag[index][2*TAG_WIDTH-1:1*TAG_WIDTH] :
+                                         (replace_num==2) ? cache_tag[index][3*TAG_WIDTH-1:2*TAG_WIDTH] :
+                                                            cache_tag[index][4*TAG_WIDTH-1:3*TAG_WIDTH] ;
+    assign w_address = {cache_old_tag, index, 2'b00};
     
     // 锁存addr_ok, 正在处理
     reg addr_rcv;
@@ -146,7 +154,11 @@ module d_cache (
     // [New]究竟要写哪个地址?
     assign cache_data_addr  = write_req ? w_address : r_address;
     // [New]写进去的数据一定是原本Cache line的数据
-    assign cache_data_wdata = hit ? c_block : cache_block[index][replace_num];
+    wire[31:0] cache_old_data = (replace_num==0) ? cache_block[index][1*DATA_WIDTH-1:0*DATA_WIDTH] : 
+                                (replace_num==1) ? cache_block[index][2*DATA_WIDTH-1:1*DATA_WIDTH] :
+                                (replace_num==2) ? cache_block[index][3*DATA_WIDTH-1:2*DATA_WIDTH] :
+                                                   cache_block[index][4*DATA_WIDTH-1:3*DATA_WIDTH] ;
+    assign cache_data_wdata = hit ? c_block : cache_old_data;
 
 //=================================改变Cache====================================
     //保存地址中的tag, index，防止addr发生改变
@@ -188,6 +200,8 @@ module d_cache (
     // [New]原数据是memory读出的数据, 要写入的数据是cpu传过来的数据(不过锁存了一下)
     assign write_cache_data_wr = (cache_data_rdata & ~mask32) | (wdata_save & mask32);
 
+    wire[31:0] update_data = wr_save ? write_cache_data_wr : cache_data_rdata;
+
     //更新Cache
     integer t, w, way = 4;
     always @(negedge clk) begin
@@ -208,11 +222,17 @@ module d_cache (
             // 原来: if(cpu_data_wr & cpu_data_req & hit) begin 少了cpu_data_wr 因为更新LRU是都要做的
             if(cpu_data_req & hit) begin
                 // 更新Cache line
-                cache_valid[index][hit_num] <= 1'b1;
-                cache_tag  [index][hit_num] <= tag;
+                // cache_valid[index][hit_num] <= 1'b1;
+                // cache_tag  [index][hit_num] <= tag;
                 if(cpu_data_wr) begin
                     cache_dirty[index][hit_num] <= 1;
-                    cache_block[index][hit_num] <= write_cache_data;
+                    case(hit_num)
+                        0: cache_block[index][1*DATA_WIDTH-1:0*DATA_WIDTH] <= write_cache_data;
+                        1: cache_block[index][2*DATA_WIDTH-1:1*DATA_WIDTH] <= write_cache_data;
+                        2: cache_block[index][3*DATA_WIDTH-1:2*DATA_WIDTH] <= write_cache_data;
+                        3: cache_block[index][4*DATA_WIDTH-1:3*DATA_WIDTH] <= write_cache_data;
+                        default: ;
+                    endcase
                 end
                 // 更新LRU
                 case (hit_num)
@@ -239,26 +259,32 @@ module d_cache (
                 // 更新Cache
                 cache_valid[index_save][replace_num_save] <= 1'b1;
                 cache_dirty[index_save][replace_num_save] <= wr_save;
-                cache_tag  [index_save][replace_num_save] <= tag_save;
-                cache_block[index_save][replace_num_save] <= wr_save ? write_cache_data_wr : cache_data_rdata;
-                // 更新LRU
-                case (replace_num_save)
-                    0 : begin
+                case(replace_num_save)
+                    0: begin
+                        cache_block[index_save][1*DATA_WIDTH-1:0*DATA_WIDTH] <= update_data;
+                        cache_tag  [index_save][1*TAG_WIDTH-1:0*TAG_WIDTH] <= tag_save;
                         cache_pLRU[index_save][0] <= 1;
                         cache_pLRU[index_save][1] <= 1;
-                    end
-                    1 : begin
+                    end 
+                    1: begin
+                        cache_block[index_save][2*DATA_WIDTH-1:1*DATA_WIDTH] <= update_data;
+                        cache_tag  [index_save][2*TAG_WIDTH-1:1*TAG_WIDTH] <= tag_save;
                         cache_pLRU[index_save][0] <= 1;
                         cache_pLRU[index_save][1] <= 0;
-                    end
-                    2 : begin
+                    end 
+                    2: begin
+                        cache_block[index_save][3*DATA_WIDTH-1:2*DATA_WIDTH] <= update_data;
+                        cache_tag  [index_save][3*TAG_WIDTH-1:2*TAG_WIDTH] <= tag_save;
                         cache_pLRU[index_save][0] <= 0;
                         cache_pLRU[index_save][2] <= 1;
-                    end
-                    3 : begin
+                    end 
+                    3: begin
+                        cache_block[index_save][4*DATA_WIDTH-1:3*DATA_WIDTH] <= update_data;
+                        cache_tag  [index_save][4*TAG_WIDTH-1:3*TAG_WIDTH] <= tag_save;
                         cache_pLRU[index_save][0] <= 0;
                         cache_pLRU[index_save][2] <= 0;
-                    end
+                    end 
+                    default: ;
                 endcase
             end
         end

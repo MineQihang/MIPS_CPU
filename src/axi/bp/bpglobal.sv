@@ -27,22 +27,23 @@ integer i;
 
 
 //-----------------------Logic-----------------------
-// 初始化
+// 预测
+assign PHT_indexF = {hashed_pcF, GHR};
+assign pcsrcPF = PHT[PHT_indexF][1];
+
+assign PHT_indexM = {hashed_pcM, GHR_Retired};
+wire [1:0] next_state;
+counter2 pht_update_global(PHT[PHT_indexM], pcsrcM, next_state); // 计算对应PHT表项下一个状态
+
 always @(posedge clk) begin
+    // 初始化
     if(rst) begin
         GHR <= 0; GHR_E <= 0; GHR_Retired <= 0; GHR2_D <= 0; GHR2_E <= 0; GHR2 <= 0;
         for(i = 0; i < (1<<PHT_DEPTH); i = i + 1) begin
             // PHT[i] <= 2'b01;
         end
     end
-end
-
-// 预测
-assign PHT_indexF = {hashed_pcF, GHR};
-assign pcsrcPF = PHT[PHT_indexF][1];
-
-// 更新
-always @(posedge clk) begin
+    // 更新
     if(branchD) begin // Decode阶段更新
         GHR <= {GHR[GHR_WIDTH-2:0], pcsrcPF}; // 预测
         GHR2_D <= {GHR[GHR_WIDTH-2:0], ~pcsrcPF}; // 预测相反方向
@@ -56,12 +57,7 @@ always @(posedge clk) begin
         GHR_Retired <= GHR_E;
         GHR2 <= GHR2_E;
     end
-end
-
-assign PHT_indexM = {hashed_pcM, GHR_Retired};
-wire [1:0] next_state;
-counter2 pht_update_global(PHT[PHT_indexM], pcsrcM, next_state); // 计算对应PHT表项下一个状态
-always @(posedge clk) begin
+    // 更新
     if(branchM) begin
         PHT[PHT_indexM] <= next_state; // 更新PHT
         // 预测错误
@@ -70,5 +66,6 @@ always @(posedge clk) begin
         end
     end
 end
+
 
 endmodule
