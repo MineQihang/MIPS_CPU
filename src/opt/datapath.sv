@@ -265,8 +265,17 @@ module datapath(
     mux2 #(32) u_mux2_src(srcbt, immE, alusrcE, srcbt1);
     mux2 #(32) u_mux2_srcbj(srcbt1, pcE + 8, savepcE, srcb);
     // alu
-    alu u_alu(clk, rst, div_stall,
-              srca, srcb, saE, alucontrolE, aluoutE, overflowE, tohilo);
+    alu u_alu(
+        .clk(clk), .rst(rst), 
+        .div_stall(div_stall),
+        .a(srca),
+        .b(srcb),
+        .sa(saE),
+        .op(alucontrolE), 
+        .ans(aluoutE), 
+        .overflow(overflowE),
+        .tohilo(tohilo)
+    );
     // hilo
     hilo_reg u_hiloreg(
         .clk(clk), .rst(rst),

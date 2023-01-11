@@ -28,9 +28,7 @@ module hazard(
 );
 
 // 数据冒险(and, or, sub ...) -> 数据前推
-assign forwardaE = ((flagE[1:0] & flagM[1:0]) != 2'b00 & flagE[2] == 0 & flagM[2] == 1) ? 2'b10 : // HILO在Memory阶段
-				   ((flagE[1:0] & flagW[1:0]) != 2'b00 & flagE[2] == 0 & flagW[2] == 1) ? 2'b01 : // HILO在Writeback阶段
-				   (rsE == 0) ? 2'b00 :
+assign forwardaE = (rsE == 0) ? 2'b00 :
                    (rsE == writeregM & regwriteM) ? 2'b10 : // rs数据在Memory阶段
                    (rsE == writeregW & regwriteW) ? 2'b01 : // rs数据在Writeback阶段
                    2'b00;
