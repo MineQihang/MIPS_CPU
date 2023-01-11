@@ -26,7 +26,12 @@ module decoder(
     output  reg         syscall,
     output  reg         eret,
     output  reg         mfc0,
-    output  reg         mtc0
+    output  reg         mtc0,
+    // data move
+    output  reg         mthi,
+    output  reg         mtlo,
+    output  reg         mfhi,
+    output  reg         mflo
 );
 
 wire[5:0] op;
@@ -57,6 +62,10 @@ always @(*) begin
     eret        = 1'b0;
     mfc0        = 1'b0;
     mtc0        = 1'b0;
+    mthi        = 1'b0;
+    mtlo        = 1'b0;
+    mfhi        = 1'b0;
+    mflo        = 1'b0;
     case (op)
         `R_TYPE:
             case(funct)
@@ -92,22 +101,22 @@ always @(*) begin
                     alucontrol = `ALU_SLTU;
                 end
                 `MULT: begin
-                    regwrite = 1'b1;
+                    // regwrite = 1'b1;
                     regdst   = 1'b1;
                     alucontrol = `ALU_MULT;
                 end
                 `MULTU: begin
-                    regwrite = 1'b1;
+                    // regwrite = 1'b1;
                     regdst   = 1'b1;
                     alucontrol = `ALU_MULTU;
                 end
                 `DIV: begin
-                    regwrite = 1'b1;
+                    // regwrite = 1'b1;
                     regdst   = 1'b1;
                     alucontrol = `ALU_DIV;
                 end
                 `DIVU: begin
-                    regwrite = 1'b1;
+                    // regwrite = 1'b1;
                     regdst   = 1'b1;
                     alucontrol = `ALU_DIVU;
                 end
@@ -167,6 +176,7 @@ always @(*) begin
                 `JR: begin
                     regdst   = 1'b1;
                     jr       = 1'b1;
+                    jump     = 1'b1;
                     alucontrol = `ALU_B;
                 end
                 `JALR: begin
@@ -174,20 +184,25 @@ always @(*) begin
                     regwrite = 1'b1;
                     regdst   = 1'b1;
                     jr       = 1'b1;
+                    jump     = 1'b1;
                     alucontrol = `ALU_B;
                 end
                 // 数据移动指令（4条，共4条）
                 `MFHI: begin
+                    mfhi = 1'b1;
                     regwrite = 1'b1;
+                    regdst = 1'b1;
                 end
                 `MFLO: begin
+                    mflo = 1'b1;
                     regwrite = 1'b1;
+                    regdst = 1'b1;
                 end 
                 `MTHI: begin
-                    
+                    mthi = 1'b1;
                 end
                 `MTLO: begin
-                    
+                    mtlo = 1'b1;
                 end
                 // 自陷指令（2条，共2条）
                 `SYSCALL: begin
@@ -342,7 +357,7 @@ always @(*) begin
                 mfc0 = 1'b1;
             end
             `ERET: begin
-                eret = 1'b0;
+                eret = 1'b1;
             end
             default: instError = 1'b1; // 无效指令
         endcase

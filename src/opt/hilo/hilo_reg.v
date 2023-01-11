@@ -27,7 +27,7 @@ module hilo_reg(
     );
 	
 	reg [31:0] hi, lo;
-	always @(posedge clk) begin
+	always @(negedge clk) begin
 		if(rst) begin
 			hi <= 0;
 			lo <= 0;

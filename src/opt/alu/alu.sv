@@ -10,7 +10,8 @@ module alu(
 	input wire[4:0] sa,
 	input wire[4:0] op,
 	output reg[63:0] ans,
-	output reg overflow
+	output reg overflow,
+	output wire tohilo
 );
 	reg[63:0] y;
 	always @(*) begin
@@ -53,6 +54,9 @@ module alu(
 	end
 
 	wire div_valid = (op == `ALU_DIV || op == `ALU_DIVU) ? 1'b1 : 1'b0;
+	wire mult_valid = (op == `ALU_MULT || op == `ALU_MULTU) ? 1'b1 : 1'b0;
+	assign tohilo = div_valid | mult_valid;
+
 	wire signed_div = (op == `ALU_DIV) ? 1'b1 : 1'b0;
 	wire ready;
 	wire start = div_valid & (~ready);
