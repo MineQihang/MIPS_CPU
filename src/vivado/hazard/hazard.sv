@@ -6,7 +6,7 @@ module hazard(
 	//decode
 	input wire[4:0] rsD,rtD,
 	input wire branchD,
-	output wire forwardaD,forwardbD,
+	// output wire forwardaD,forwardbD,
 	output wire stallD,
 	//execute
 	input wire[4:0] rsE,rtE,
@@ -47,12 +47,12 @@ assign lwstallD = memtoregE & // 是否写入
 			      (rsD != 0 | rsE != 0) &
                   (rtE == rsD | rtE == rtD); // 判断decode阶段rs或rt的地址是否是lw指令要写入的地址
 // branch
-wire branchstallD;
-assign branchstallD = branchD & // 是否跳转
-                      (regwriteE & // 是否写入寄存器堆
-                      (writeregE == rsD | writeregE == rtD) | // (1)Decode阶段写入
-                       memtoregM & // (2)写入Data Memory
-                      (writeregM == rsD | writeregM == rtD)); // (3)Memory阶段写入
+// wire branchstallD;
+// assign branchstallD = branchD & // 是否跳转
+//                       (regwriteE & // 是否写入寄存器堆
+//                       (writeregE == rsD | writeregE == rtD) | // (1)Decode阶段写入
+//                        memtoregM & // (2)写入Data Memory
+//                       (writeregM == rsD | writeregM == rtD)); // (3)Memory阶段写入
 // merge
 assign stallD = lwstallD; // | branchstallD;
 assign stallF = stallD; // Fetch, Decode阶段暂停
@@ -60,8 +60,8 @@ assign stallF = stallD; // Fetch, Decode阶段暂停
 // assign flushM = 1'b0; // 对Memory阶段的数据进行刷新
 
 // 控制冒险 + 数据冒险(beq) -> 数据前推 
-assign forwardaD = (rsD != 0 & rsD == writeregM & regwriteM); // 提前判断beq
-assign forwardbD = (rtD != 0 & rtD == writeregM & regwriteM);
+// assign forwardaD = (rsD != 0 & rsD == writeregM & regwriteM); // 提前判断beq
+// assign forwardbD = (rtD != 0 & rtD == writeregM & regwriteM);
 
 
 endmodule

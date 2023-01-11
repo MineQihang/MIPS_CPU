@@ -36,6 +36,10 @@
 `define ALU_JR              5'b11001
 `define ALU_JALR            5'b11010
 
+// 选择A或B
+`define ALU_A               5'b11011
+`define ALU_B               5'b11100
+
 // `define ALU_ADD             5'b0_0010
 // `define ALU_SUB             5'b0_0011
 // `define ALU_SLT             5'b0_0100

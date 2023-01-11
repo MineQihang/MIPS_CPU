@@ -24,7 +24,7 @@ module d_cache (
 );
 //==============================Cache配置与访问=================================
     //Cache配置
-    parameter INDEX_WIDTH = 10, OFFSET_WIDTH = 2, DATA_WIDTH = 32;
+    parameter INDEX_WIDTH = 6, OFFSET_WIDTH = 2, DATA_WIDTH = 32;
     localparam TAG_WIDTH = 32 - INDEX_WIDTH - OFFSET_WIDTH;
     localparam CACHE_DEEPTH = 1 << INDEX_WIDTH;
     
@@ -208,16 +208,9 @@ module d_cache (
     integer t, w, way = 4;
     always @(negedge clk) begin
         if(rst) begin
-            // cache_valid <= '{default: '0};
-            // cache_dirty <= '{default: '0};
-            // cache_pLRU <= '{default: '0};
-            // for(t=0; t<CACHE_DEEPTH; t=t+1) begin   //刚开始将Cache置为无效
-            //     for(w=0; w<way; w=w+1) begin
-            //         cache_valid[t][w] <= 0;
-            //         cache_dirty[t][w] <= 0;
-            //     end
-            //     cache_pLRU[t]   <= 0;
-            // end
+            cache_valid <= '{default: '0};
+            cache_dirty <= '{default: '0};
+            cache_pLRU <= '{default: '0};
         end
         else begin
             // [New]命中时写直接更新cache

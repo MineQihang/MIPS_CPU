@@ -1,3 +1,5 @@
+`timescale 1ns / 1ps
+
 module i_cache (
     input wire clk, rst,
     //mips core
@@ -108,9 +110,7 @@ module i_cache (
     integer t;
     always @(posedge clk) begin
         if(rst) begin
-            for(t=0; t<CACHE_DEEPTH; t=t+1) begin   //刚开始将Cache置为无效
-                cache_valid[t] <= 0;
-            end
+            cache_valid <= '{default: '0};
         end
         else begin
             if(read_finish) begin //读缺失，访存结束时

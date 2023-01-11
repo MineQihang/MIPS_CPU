@@ -1,3 +1,5 @@
+`timescale 1ns / 1ps
+
 module d_cache (
     input wire clk, rst,
     //mips core  上层接口
@@ -104,7 +106,6 @@ module d_cache (
                                  cpu_data_req & hit ? IDLE : IDLE;
                 RM:     state <= cache_data_data_ok ? IDLE : RM;
                 WM:     state <= cache_data_data_ok ? RM : WM;
-                default: state <= IDLE;
             endcase
         end
     end
@@ -207,13 +208,16 @@ module d_cache (
     integer t, w, way = 4;
     always @(negedge clk) begin
         if(rst) begin
-            for(t=0; t<CACHE_DEEPTH; t=t+1) begin   //刚开始将Cache置为无效
-                for(w=0; w<way; w=w+1) begin
-                    cache_valid[t][w] <= 0;
-                    cache_dirty[t][w] <= 0;
-                end
-                cache_pLRU[t]   <= 0;
-            end
+            // cache_valid <= '{default: '0};
+            // cache_dirty <= '{default: '0};
+            // cache_pLRU <= '{default: '0};
+            // for(t=0; t<CACHE_DEEPTH; t=t+1) begin   //刚开始将Cache置为无效
+            //     for(w=0; w<way; w=w+1) begin
+            //         cache_valid[t][w] <= 0;
+            //         cache_dirty[t][w] <= 0;
+            //     end
+            //     cache_pLRU[t]   <= 0;
+            // end
         end
         else begin
             // [New]命中时写直接更新cache

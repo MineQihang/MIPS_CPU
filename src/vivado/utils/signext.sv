@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-`include "defines2.vh"
+`include "../defines/defines2.vh"
 
 module signext(
     input wire[15:0] a,
@@ -10,11 +10,11 @@ module signext(
 
 always @(*) begin
     case(op)
-        `ANDI: y <= {{16{1'b0}}, a};
-        `XORI: y <= {{16{1'b0}}, a};
-        `LUI:  y <= {{16{1'b0}}, a};
-        `ORI:  y <= {{16{1'b0}}, a};
-        default: y <= {{16{a[15]}}, a};
+        `ANDI: y = {{16{1'b0}}, a};
+        `XORI: y = {{16{1'b0}}, a};
+        `LUI:  y = {{16{1'b0}}, a};
+        `ORI:  y = {{16{1'b0}}, a};
+        default: y = {{16{a[15]}}, a};
     endcase
 end
 

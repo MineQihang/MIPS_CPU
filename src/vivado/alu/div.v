@@ -29,8 +29,9 @@
 // Description: ����ģ��
 // Revision: 1.0
 //////////////////////////////////////////////////////////////////////
+`timescale 1ns / 1ps
 
-`include "defines2.vh"
+`include "../defines/defines2.vh"
 
 module div(
 

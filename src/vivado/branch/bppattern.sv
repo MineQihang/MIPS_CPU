@@ -38,7 +38,7 @@ always @(posedge clk) begin
     // 初始化
     if(rst) begin
         for(i = 0; i < (1<<PHT_DEPTH); i = i + 1) begin
-            PHT[i] <= 2'b01;
+            // PHT[i] <= 2'b01;
         end
         for(i = 0; i < (1<<BHT_DEPTH); i = i + 1) begin
             BHT[i] <= 0;

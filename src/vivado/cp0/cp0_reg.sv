@@ -1,5 +1,5 @@
 `timescale 1ns / 1ps
-`include "../utils/defines2.vh"
+`include "../defines/defines2.vh"
 
 module cp0_reg(
 	input wire clk,
@@ -12,7 +12,7 @@ module cp0_reg(
 	input wire[31:0] pc, // 指令的pc
 	input wire[31:0] badvaddr, // 错误的地址
 
-	input wire[5:0] exctype, // 异常类型
+	input wire[4:0] exctype, // 异常类型
 	input wire[4:0] raddr, // 读哪个CPO寄存器
 	input wire[4:0] waddr, // 要写哪个寄存器
 
@@ -73,14 +73,14 @@ module cp0_reg(
 
 	// 读CP0数据
 	always @(*) begin
-		if(rst) begin readdata <= 32'b0; end
+		if(rst) begin readdata = 32'b0; end
 		case(raddr) 
-			5'd8: readdata <= BadVAddr;
-			5'd9: readdata <= Count;
-			5'd12: readdata <= Status;
-			5'd13: readdata <= Cause;
-			5'd14: readdata <= Epc;
-			default: readdata <= 32'b0;
+			5'd8: readdata = BadVAddr;
+			5'd9: readdata = Count;
+			5'd12: readdata = Status;
+			5'd13: readdata = Cause;
+			5'd14: readdata = Epc;
+			default: readdata = 32'b0;
 		endcase
 	end
 

@@ -12,11 +12,12 @@ module branchpredictor(
     input wire branchD, // D阶段的branch
 
     output wire pcsrcPF, // 预测值
-    output wire pmis, // 是否预测错误
-    output wire flushD, // 清空F->D
-    output wire flushE, // 清空D->X
-    output wire flushM // 清空X->M
+    input wire pmis, // 是否预测错误
+    // output wire flushD, // 清空F->D
+    output wire flushE // 清空D->X
+    // output wire flushM // 清空X->M
 );
+wire flushD, flushM;
 //-----------------------Data-----------------------
 parameter PHT_DEPTH = 7; // PHT深度
 parameter BHT_DEPTH = 3; // BHT深度
@@ -119,7 +120,8 @@ always @(posedge clk) begin
 end
 
 // 是否预测失败
-assign pmis = pcsrcM ^ pcsrcPM;
+// assign pmisE = pcsrcE ^ pcsrcPE;
+// assign pmisM = pcsrcM ^ pcsrcPM;
 
 // 预测失败flush掉数据
 assign flushD = 1'b0;

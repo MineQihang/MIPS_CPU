@@ -15,26 +15,26 @@ always @(*) begin
     case(state)
         SNT:
             case(action)
-                NT: next_state <= SNT;
-                T:  next_state <= WNT;
+                NT: next_state = SNT;
+                T:  next_state = WNT;
                 default: ;
             endcase
         WNT:
             case(action)
-                NT: next_state <= SNT;
-                T:  next_state <= WT;
+                NT: next_state = SNT;
+                T:  next_state = WT;
                 default: ;
             endcase
         WT:
             case(action)
-                NT: next_state <= WNT;
-                T:  next_state <= ST;
+                NT: next_state = WNT;
+                T:  next_state = ST;
                 default: ;
             endcase
         ST:
             case(action)
-                NT: next_state <= WT;
-                T:  next_state <= ST;
+                NT: next_state = WT;
+                T:  next_state = ST;
                 default: ;
             endcase
         default: ;
