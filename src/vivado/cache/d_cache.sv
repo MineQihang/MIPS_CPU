@@ -24,7 +24,7 @@ module d_cache (
 );
 //==============================Cache配置与访问=================================
     //Cache配置
-    parameter INDEX_WIDTH = 6, OFFSET_WIDTH = 2, DATA_WIDTH = 32;
+    parameter INDEX_WIDTH = 8, OFFSET_WIDTH = 2, DATA_WIDTH = 32;
     localparam TAG_WIDTH = 32 - INDEX_WIDTH - OFFSET_WIDTH;
     localparam CACHE_DEEPTH = 1 << INDEX_WIDTH;
     
