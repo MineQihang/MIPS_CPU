@@ -14,21 +14,21 @@ module pc #(parameter WIDTH = 32)(
 	input	wire				exc,
 	input	wire				eret,
 	// 选择
-	output	wire  [WIDTH-1:0] 	des
+	output	reg  [WIDTH-1:0] 	des
 );
 	reg [31:0] nxt_pc;
 
 	always @(posedge clk, posedge rst) begin
 		if(rst) begin
-			nxt_pc <= 32'hbfc00000;
+			des <= 32'hbfc00000;
 		end else if(en) begin
-			nxt_pc <= pc_seq;
+			des <= nxt_pc;
 		end
 	end
 
-	assign des = eret ? pc_eret : 
-				exc  ? pc_exc : 
-				pmis ? pc_pmis :
-				jump ? pc_jump : 
-					   nxt_pc;
+	assign nxt_pc = eret ? pc_eret : 
+				    exc  ? pc_exc  : 
+				    pmis ? pc_pmis :
+				    jump ? pc_jump : 
+					       pc_seq;
 endmodule

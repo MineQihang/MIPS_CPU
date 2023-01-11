@@ -98,7 +98,7 @@ module datapath(
     wire pbranchF, pbranchD;
     wire flushE;
     wire tbranch;
-    wire pmis;
+    wire pmisE, pmisM;
     // Exception
     wire intM;
     wire overflowE, overflowM;
@@ -127,7 +127,7 @@ module datapath(
         .pc_eret(epc),          // 从异常模块返回时的pc
         // 控制信号
         .jump   ((jumpE | branchE) & ~flushDE),
-        .pmis   (pmis),
+        .pmis   (pmisM),
         .exc    (isexc),
         .eret   (eretM),
         // 选择pc
@@ -147,7 +147,7 @@ module datapath(
 
     // mux2 #(32) u_mux_branch(tmp_pc4, tmp_pc2E, (branchE & ~flushDE), tmp_pc5);  // 是否分支
 
-    // mux2 #(32) u_mux_pcbr2(tmp_pc5, fpcM, pmis, tmp_pc6); // 失败的pc
+    // mux2 #(32) u_mux_pcbr2(tmp_pc5, fpcM, pmisM, tmp_pc6); // 失败的pc
 
     // mux2 #(32) u_mux_pc2(tmp_pc6, `EXC_ENTRY, isexc, nxt_pc); // 异常
     // mux2 #(32) u_mux_pc3(nxt_pc, epc, eretM, pc); // ERET
@@ -155,7 +155,7 @@ module datapath(
     assign pc_plus4F = pc + 32'h4;
 
     assign indelayslotF = (jumpD | branchD) & ~flushDE;
-    assign inst_en = ~(pmis | isexc);
+    assign inst_en = ~(pmisM | isexc);
     
     assign stallFD = hstallD | (div_stall & ~isexc) | stall_all;
     assign flushFD = 1'b0;
@@ -263,12 +263,12 @@ module datapath(
     flopenrc #(1) dc10(clk, rst, ~stallDE, flushDE, jrD, jrE);
     // flopenrc #(1) dc11(clk, rst, ~stallDE, flushDE, jalr, jalrE);
     // flopenrc #(1) dc12(clk, rst, ~stallDE, flushDE, jal, jalE);
-    flopenrc #(1) dc13(clk, rst, ~stall_all, pmis & ~stall_all, breakD, breakE);
-    flopenrc #(1) dc14(clk, rst, ~stall_all, pmis & ~stall_all, syscallD, syscallE);
-    flopenrc #(1) dc15(clk, rst, ~stall_all, pmis & ~stall_all, eretD, eretE);
+    flopenrc #(1) dc13(clk, rst, ~stall_all, pmisM & ~stall_all, breakD, breakE);
+    flopenrc #(1) dc14(clk, rst, ~stall_all, pmisM & ~stall_all, syscallD, syscallE);
+    flopenrc #(1) dc15(clk, rst, ~stall_all, pmisM & ~stall_all, eretD, eretE);
     flopenrc #(1) dc16(clk, rst, ~stallDE, flushDE, mfc0D, mfc0E);
     flopenrc #(1) dc17(clk, rst, ~stallDE, flushDE, mtc0D, mtc0E);
-    flopenrc #(1) dc18(clk, rst, ~stall_all, pmis & ~stall_all, indelayslotD, indelayslotE);
+    flopenrc #(1) dc18(clk, rst, ~stall_all, pmisM & ~stall_all, indelayslotD, indelayslotE);
     flopenrc #(1) dc19(clk, rst, ~stallDE, flushDE, instErrorD, instErrorE);
     flopenrc #(1) dc20(clk, rst, ~stallDE, flushDE, flushE, flushE2);
     flopenrc #(1) dc21(clk, rst, ~stallDE, flushDE, savepcD, savepcE);
@@ -292,6 +292,7 @@ module datapath(
     assign pc_pmisE = pcsrcPE ? pc_plus4E + 4 : pc_branchE;
     branchjudger u_branchjudger(srca, srcb, instE[31:26], instE[20:16], tbranch);
     assign pcsrcE = branchE & tbranch; // execute阶段判断是否预测成功
+    assign pmisE = pcsrcE ^ pcsrcPE;
 
     assign stallEM = stall_all;
     assign flushEM = isexc;
@@ -323,6 +324,7 @@ module datapath(
     flopenrc #(1)  ec11(clk, rst, ~stallEM, flushEM, mtc0E, mtc0M);
     flopenrc #(32) ec12(clk, rst, ~stallEM, 1'b0, statusE, statusM);
     flopenrc #(32) ec15(clk, rst, ~stallEM, 1'b0, causeE, causeM);
+    flopenrc #(1)  ec16(clk, rst, ~stallEM, 1'b0, pmisE, pmisM);
 
 
 //============================Memory=============================//
@@ -469,7 +471,7 @@ module datapath(
         branchD, // D阶段的branch
         // output
         pbranchF, // 预测�?
-        pmis, // 是否预测错误
+        pmisM, // 是否预测错误
         // flushD, // 清空F->D
         flushE // 清空D->X
         // flushM // 清空X->M

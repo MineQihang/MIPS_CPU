@@ -47,12 +47,12 @@ assign lwstallD = memtoregE & // 是否写入
 			      (rsD != 0 | rsE != 0) &
                   (rtE == rsD | rtE == rtD); // 判断decode阶段rs或rt的地址是否是lw指令要写入的地址
 // branch
-wire branchstallD;
-assign branchstallD = branchD & // 是否跳转
-                      (regwriteE & // 是否写入寄存器堆
-                      (writeregE == rsD | writeregE == rtD) | // (1)Decode阶段写入
-                       memtoregM & // (2)写入Data Memory
-                      (writeregM == rsD | writeregM == rtD)); // (3)Memory阶段写入
+// wire branchstallD;
+// assign branchstallD = branchD & // 是否跳转
+//                       (regwriteE & // 是否写入寄存器堆
+//                       (writeregE == rsD | writeregE == rtD) | // (1)Decode阶段写入
+//                        memtoregM & // (2)写入Data Memory
+//                       (writeregM == rsD | writeregM == rtD)); // (3)Memory阶段写入
 // merge
 assign stallD = lwstallD; // | branchstallD;
 assign stallF = stallD; // Fetch, Decode阶段暂停
