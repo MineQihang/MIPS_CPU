@@ -22,9 +22,9 @@ module hazard(
 	// output wire flushM,
 	//writeback
 	input wire[4:0] writeregW,
-	input wire regwriteW,
+	input wire regwriteW
 	//hilo
-	input wire[2:0] flagE, flagM, flagW
+	// input wire[2:0] flagE, flagM, flagW
 );
 
 // 数据冒险(and, or, sub ...) -> 数据前推

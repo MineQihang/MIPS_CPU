@@ -40,15 +40,6 @@ integer i; // 循环初始化用
 
 
 //-----------------------Logic-----------------------
-// 初始化
-always @(posedge clk) begin
-    if(rst) begin
-        // for(i = 0; i < (1<<PHT_DEPTH); i=i+1) begin
-        //     // CPHT[i] <= 2'b01;
-        // end
-        CPHT <= '{default: '0};
-    end
-end
 
 // 哈希pc
 assign hashed_pcF = pc[30:28];  // F阶段的pc
@@ -103,22 +94,31 @@ floprc #(1) em2(clk, rst, flushM, pcsrcPE_global, pcsrcPM_global);
 assign pmis_pattern = pcsrcPM_pattern ^ pcsrcPM; // 局部预测是否成功
 assign pmis_global = pcsrcPM_global ^ pcsrcPM; // 全局预测是否成功
 always @(posedge clk) begin
-    if(branchM) begin // 分支指令才更新
-        case({pmis_global, pmis_pattern}) // (P1, P2)
-            2'b10: // P1预测错误
-                case(CPHT[CPHT_indexM])
-                    2'b11: ; // 选择P2的饱和态
-                    default: CPHT[CPHT_indexM] <= CPHT[CPHT_indexM] + 1;
-                endcase
-            2'b01: // P2预测错误
-                case(CPHT[CPHT_indexM])
-                    2'b00: ; // 选择P1的饱和态
-                    default: CPHT[CPHT_indexM] <= CPHT[CPHT_indexM] - 1;
-                endcase
-            default: ;
-        endcase
+    if(rst) begin
+        for(i = 0; i < (1<<PHT_DEPTH); i=i+1) begin
+            CPHT[i] <= 2'b01;
+        end
+        // CPHT <= '{default: '0};
+    end
+    else begin
+        if(branchM) begin // 分支指令才更新
+            case({pmis_global, pmis_pattern}) // (P1, P2)
+                2'b10: // P1预测错误
+                    case(CPHT[CPHT_indexM])
+                        2'b11: ; // 选择P2的饱和态
+                        default: CPHT[CPHT_indexM] <= CPHT[CPHT_indexM] + 1;
+                    endcase
+                2'b01: // P2预测错误
+                    case(CPHT[CPHT_indexM])
+                        2'b00: ; // 选择P1的饱和态
+                        default: CPHT[CPHT_indexM] <= CPHT[CPHT_indexM] - 1;
+                    endcase
+                default: ;
+            endcase
+        end
     end
 end
+
 
 // 是否预测失败
 // assign pmisE = pcsrcE ^ pcsrcPE;

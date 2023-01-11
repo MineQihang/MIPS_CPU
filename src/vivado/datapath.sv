@@ -78,7 +78,7 @@ module datapath(
     wire[31:0] immD, immE, immD_sl2;
     wire[31:0] rd1D, rd2D, rd1E, rd2E;
     wire[31:0] pc_branchD, pc_branchE;
-    wire[2:0] flagD_imm, flagD, flagE, flagM, flagW;
+    // wire[2:0] flagD_imm, flagD, flagE, flagM, flagW;
     wire pcsrcE, pcsrcM;
     wire pcsrcPD, pcsrcPE, pcsrcPM;
     // Execute
@@ -317,7 +317,7 @@ module datapath(
     flopenrc #(1)   ec2(clk, rst, ~stallEM, flushEM, memtoregE, memtoregM);
     flopenrc #(1)   ec3(clk, rst, ~stallEM, flushEM, memwriteE, memwriteM0);
     flopenrc #(1)   ec4(clk, rst, ~stallEM, flushEM, branchE, branchM);
-    flopenrc #(3)   ec5(clk, rst, ~stallEM, flushEM, flagE, flagM);
+    // flopenrc #(3)   ec5(clk, rst, ~stallEM, flushEM, flagE, flagM);
     // flopenrc #(1)   ec6(clk, rst, ~stallEM, flushEM, stallE, stallM);
     flopenrc #(1)   ec7(clk, rst, ~stallEM, 1'b0, breakE, breakM);
     flopenrc #(1)   ec8(clk, rst, ~stallEM, 1'b0, syscallE, syscallM);
@@ -429,7 +429,7 @@ module datapath(
 
     flopenrc #(1) mc1(clk, rst, ~stallMW, flushMW, regwriteM, regwriteW);
     flopenrc #(1) mc2(clk, rst, ~stallMW, flushMW, memtoregM, memtoregW);
-    flopenrc #(3) mc3(clk, rst, ~stallMW, flushMW, flagM, flagW);
+    // flopenrc #(3) mc3(clk, rst, ~stallMW, flushMW, flagM, flagW);
 
 //============================Writeback=============================//
     mux2 #(32) u_mux2_readdata(aluoutW, readdataW, memtoregW, res);
@@ -455,9 +455,9 @@ module datapath(
         memtoregM,
         //writeback
         wregW,
-        regwriteW,
+        regwriteW
         // hilo
-        flagE, flagM, flagW
+        // flagE, flagM, flagW
     );
     
     assign stall_all = i_stall | d_stall | div_stall;

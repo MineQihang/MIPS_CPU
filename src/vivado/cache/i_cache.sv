@@ -110,7 +110,9 @@ module i_cache (
     integer t;
     always @(posedge clk) begin
         if(rst) begin
-            cache_valid <= '{default: '0};
+            for(t=0; t<CACHE_DEEPTH; t++) begin
+                cache_valid[t] <= 1'b0;
+            end
         end
         else begin
             if(read_finish) begin //读缺失，访存结束时

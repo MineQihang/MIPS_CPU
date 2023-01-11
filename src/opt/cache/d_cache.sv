@@ -24,7 +24,7 @@ module d_cache (
 );
 //==============================Cache配置与访问=================================
     //Cache配置
-    parameter INDEX_WIDTH = 8, OFFSET_WIDTH = 2, DATA_WIDTH = 32;
+    parameter INDEX_WIDTH = 10, OFFSET_WIDTH = 2, DATA_WIDTH = 32;
     localparam TAG_WIDTH = 32 - INDEX_WIDTH - OFFSET_WIDTH;
     localparam CACHE_DEEPTH = 1 << INDEX_WIDTH;
     
@@ -252,9 +252,9 @@ module d_cache (
             // 不命中时从内存读入数据后更新cache(为什么:见状态图, 在RM阶段看是否是由WM阶段转移过来的(在这个阶段更新cache line), 这也是为什么上面write_cache_data_wr的新数据是wdata_save)
             if (read_req & cache_data_data_ok) begin
                 // 更新Cache
-                cache_valid[index_save][replace_num_save] <= 1'b1;
-                cache_dirty[index_save][replace_num_save] <= wr_save;
-                case(replace_num_save)
+                cache_valid[index_save][replace_num] <= 1'b1;
+                cache_dirty[index_save][replace_num] <= wr_save;
+                case(replace_num)
                     0: begin
                         cache_block[index_save][1*DATA_WIDTH-1:0*DATA_WIDTH] <= update_data;
                         cache_tag  [index_save][1*TAG_WIDTH-1:0*TAG_WIDTH] <= tag_save;

@@ -37,14 +37,14 @@ counter2 pht_update_pattern(PHT[PHT_indexM], pcsrcM, next_state); // 计算对�
 always @(posedge clk) begin
     // 初始化
     if(rst) begin
-        // for(i = 0; i < (1<<PHT_DEPTH); i = i + 1) begin
-        //     // PHT[i] <= 2'b01;
-        // end
-        // for(i = 0; i < (1<<BHT_DEPTH); i = i + 1) begin
-        //     BHT[i] <= 0;
-        // end
-        PHT <= '{default: '0};
-        BHT <= '{default: '0};
+        for(i = 0; i < (1<<PHT_DEPTH); i = i + 1) begin
+            PHT[i] <= 2'b01;
+        end
+        for(i = 0; i < (1<<BHT_DEPTH); i = i + 1) begin
+            BHT[i] <= 0;
+        end
+        // PHT <= '{default: '0};
+        // BHT <= '{default: '0};
     end
     // 更新
     if(branchM) begin
