@@ -24,7 +24,7 @@ module d_cache (
 );
 //==============================Cache配置与访问=================================
     //Cache配置
-    parameter INDEX_WIDTH = 10, OFFSET_WIDTH = 2, DATA_WIDTH = 32;
+    parameter INDEX_WIDTH = 6, OFFSET_WIDTH = 2, DATA_WIDTH = 32;
     localparam TAG_WIDTH = 32 - INDEX_WIDTH - OFFSET_WIDTH;
     localparam CACHE_DEEPTH = 1 << INDEX_WIDTH;
     
@@ -152,7 +152,7 @@ module d_cache (
     // 由于在CPU请求写的时候，如果写缺失并且Cache line为clean的，并不一定会去写内存
     assign cache_data_wr    = write_req;
     // 数据的有效字节(为了实现sb, sh)
-    assign cache_data_size  = cpu_data_size;
+    assign cache_data_size  = 2'b10;
     // [New]究竟要写哪个地址?
     assign cache_data_addr  = write_req ? w_address : r_address;
     // [New]写进去的数据一定是原本Cache line的数据
@@ -168,7 +168,7 @@ module d_cache (
     reg [INDEX_WIDTH-1:0] index_save;
     reg [31:0]            wdata_save;
     reg                   wr_save;
-    reg [1:0]             replace_num_save;
+    // reg [1:0]             replace_num_save;
     // 下面主要是起暂存作用(暂存一个周期)
     always @(posedge clk) begin
         tag_save   <= rst ? 0 :
@@ -179,8 +179,8 @@ module d_cache (
                       cpu_data_req ? cpu_data_wdata : wdata_save; // 发起了请求才存成当前数据
         wr_save    <= rst ? 0 : 
                       cpu_data_req ? write : wr_save; // 发起了请求才存是否要写数据
-        replace_num_save <= rst ? 0 : 
-                            cpu_data_req ? replace_num : replace_num_save;
+        // replace_num_save <= rst ? 0 : 
+        //                     cpu_data_req ? replace_num : replace_num_save;
         
     end
 

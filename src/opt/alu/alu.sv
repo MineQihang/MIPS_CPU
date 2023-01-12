@@ -9,8 +9,8 @@ module alu(
 	input wire[31:0] a,b,
 	input wire[4:0] sa,
 	input wire[4:0] op,
-	output reg[63:0] ans,
-	output reg overflow,
+	output wire[63:0] ans,
+	output wire overflow,
 	output wire tohilo
 );
 	wire [63:0] y;

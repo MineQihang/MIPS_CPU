@@ -6,7 +6,7 @@ module hazard(
 	//decode
 	input wire[4:0] rsD,rtD,
 	input wire branchD,
-	// output wire forwardaD,forwardbD,
+	output wire[1:0] forwardaD,forwardbD,
 	output wire stallD,
 	//execute
 	input wire[4:0] rsE,rtE,
@@ -24,7 +24,9 @@ module hazard(
 	input wire[4:0] writeregW,
 	input wire regwriteW
 	//hilo
-	// input wire[2:0] flagE, flagM, flagW
+	// input wire hilowriteE, 
+	// input wire hireadD, 
+	// input wire loreadD
 );
 
 // 数据冒险(and, or, sub ...) -> 数据前推
@@ -58,8 +60,14 @@ assign stallF = stallD; // Fetch, Decode阶段暂停
 // assign flushM = 1'b0; // 对Memory阶段的数据进行刷新
 
 // 控制冒险 + 数据冒险(beq) -> 数据前推 
-// assign forwardaD = (rsD != 0 & rsD == writeregM & regwriteM); // 提前判断beq
-// assign forwardbD = (rtD != 0 & rtD == writeregM & regwriteM);
+assign forwardaD = (rsD == 0) ? 2'b00 :
+                   (rsD == writeregE & regwriteE) ? 2'b01 : // rs数据在Execute阶段
+                   (rsD == writeregM & regwriteM) ? 2'b10 : // rs数据在Memory阶段
+                   2'b00;
+assign forwardbD = (rtD == 0) ? 2'b00 :
+                   (rtD == writeregE & regwriteE) ? 2'b01 : // rt数据在Execute阶段
+                   (rtD == writeregM & regwriteM) ? 2'b10 : // rt数据在Memory阶段
+                   2'b00;
 
 
 endmodule

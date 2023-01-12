@@ -76,29 +76,31 @@ module datapath(
     wire[4:0] rdD, rdE, rdM;
     wire[4:0] saD, saE;
     wire[31:0] immD, immE, immD_sl2;
-    wire[31:0] rd1D, rd2D, rd1E, rd2E;
+    wire[31:0] rd1D0, rd1D, rd2D0, rd2D, rd1E, rd2E;
     wire[31:0] pc_branchD, pc_branchE;
     // wire[2:0] flagD_imm, flagD, flagE, flagM, flagW;
     wire pcsrcE, pcsrcM;
     wire pcsrcPD, pcsrcPE, pcsrcPM;
     // Execute
     wire[4:0] wregE0, wregE, wregM, wregW;
-    wire[1:0] forwardaE, forwardbE;
-    wire[63:0] aluoutE;
-    wire[31:0] aluoutM, aluoutW;
+    wire[63:0] aluoutE0;
+    wire[31:0] aluoutE, aluoutM, aluoutW;
     wire[31:0] pc_jumpE, pc_pmisE, pc_pmisM;
     wire[31:0] srca, srcbt, srcbt1, srcb;
     wire div_stall;
-    wire tohilo;
+    wire tohilo, tohiloE;
     wire[31:0] hi, lo;
     // Memory
     wire[31:0] writedataM;
     // wire[31:0] addr;
     wire[31:0] readdataM, readdataW;
+    wire[31:0] resM, resW;
     // Writeback
-    wire[31:0] res;
+    // wire[31:0] resW;
     // Hazard
     wire hstallF, hstallD;
+    wire[1:0] forwardaE, forwardbE;
+    wire[1:0] forwardaD, forwardbD;
     // branch
     wire pbranchF, pbranchD;
     wire flushE;
@@ -199,16 +201,19 @@ module datapath(
         .ra1(rsD),
         .ra2(rtD),
         .wa3(wregW),
-        .wd3(res),
+        .wd3(resW),
         // .flagD(flagD_imm),
         // .flagW(flagW), 
-        .rd1(rd1D), 
-        .rd2(rd2D)
+        .rd1(rd1D0), 
+        .rd2(rd2D0)
     );
     
     assign pc_branchD = immD_sl2 + pc_plus4D;
 
     assign pcsrcPD = branchD & pbranchD;
+
+    mux3 #(32) u_mux3_srca1(rd1D0, aluoutE[31:0], resM, forwardaD, rd1D);
+    mux3 #(32) u_mux3_srcb1(rd2D0, aluoutE[31:0], resM, forwardbD, rd2D);
 
     wire flushE2;
     assign stallDE = stall_all | hstallD;
@@ -259,9 +264,11 @@ module datapath(
     mux2 #(5) u_mux2_rd(rtE, rdE, regdstE, wregE0);
     mux2 #(5) u_mux2_rd2(wregE0, 5'b11111, savepcE, wregE);
     // alu输入1
-    mux3 #(32) u_mux3_srca(rd1E, res, aluoutM, forwardaE, srca);
+    assign srca = rd1E;
+    // mux3 #(32) u_mux3_srca(rd1E, aluoutW, aluoutM, forwardaE, srca);
     // alu输入2
-    mux3 #(32) u_mux3_srcb(rd2E, res, aluoutM, forwardbE, srcbt);
+    // mux3 #(32) u_mux3_srcb(rd2E, aluoutW, aluoutM, forwardbE, srcbt);
+    assign srcbt = rd2E;
     mux2 #(32) u_mux2_src(srcbt, immE, alusrcE, srcbt1);
     mux2 #(32) u_mux2_srcbj(srcbt1, pcE + 8, savepcE, srcb);
     // alu
@@ -272,16 +279,18 @@ module datapath(
         .b(srcb),
         .sa(saE),
         .op(alucontrolE), 
-        .ans(aluoutE), 
+        .ans(aluoutE0), 
         .overflow(overflowE),
         .tohilo(tohilo)
     );
     // hilo
+    assign tohiloE = (tohilo | mthiE | mtloE) & ~isexc;
     hilo_reg u_hiloreg(
         .clk(clk), .rst(rst),
-        .we((tohilo | mthiE | mtloE) & ~isexc),
-        .hi_i(mthiE ? srca : (mtloE ? hi : aluoutE[63:32])),
-        .lo_i(mthiE ? lo : (mtloE ? srca : aluoutE[31:0])),
+        .hiwe((mthiE | tohilo) & ~isexc),
+        .lowe((mtloE | tohilo) & ~isexc),
+        .hi_i(mthiE ? srca : aluoutE0[63:32]),
+        .lo_i(mtloE ? srca : aluoutE0[31:0]),
         .hi_o(hi),
         .lo_o(lo)
     );
@@ -295,14 +304,14 @@ module datapath(
     assign stallEM = stall_all;
     assign flushEM = isexc;
 
-    wire [31:0] aluoutE0;
-    assign aluoutE0 = mfc0E ? cp0data : 
+    
+    assign aluoutE = mfc0E ? cp0data : 
                       mfhiE ? hi : 
                       mfloE ? lo :
-                              aluoutE[31:0];
+                              aluoutE0[31:0];
     
     // flopenrc #(1)  e1(clk, rst, ~stallEM, flushEM, zeroE, zero);
-    flopenrc #(32) e2(clk, rst, ~stallEM, 1'b0, aluoutE0, aluoutM);
+    flopenrc #(32) e2(clk, rst, ~stallEM, 1'b0, aluoutE, aluoutM);
     flopenrc #(32) e3(clk, rst, ~stallEM, flushEM, srcbt, writedataM);
     flopenrc #(5)  e4(clk, rst, ~stallEM, flushEM, wregE, wregM);
     flopenrc #(1)  e5(clk, rst, ~stallEM, flushEM, pcsrcE, pcsrcM); // 真正跳转
@@ -419,6 +428,8 @@ module datapath(
         .cause(causeE)
     );
 
+    mux2 #(32) u_mux2_readdata(aluoutM, readdataM, memtoregM, resM);
+
     assign stallMW = stall_all;
     assign flushMW = 1'b0;
 
@@ -426,13 +437,14 @@ module datapath(
     flopenrc #(32) m2(clk, rst, ~stallMW, flushMW, readdataM, readdataW);
     flopenrc #(5)  m3(clk, rst, ~stallMW, flushMW, wregM, wregW);
     flopenrc #(32) m4(clk, rst, ~stallMW, flushMW, pcM, pcW);
+    flopenrc #(32) m5(clk, rst, ~stallMW, flushMW, resM, resW);
 
     flopenrc #(1) mc1(clk, rst, ~stallMW, flushMW, regwriteM, regwriteW);
     flopenrc #(1) mc2(clk, rst, ~stallMW, flushMW, memtoregM, memtoregW);
     // flopenrc #(3) mc3(clk, rst, ~stallMW, flushMW, flagM, flagW);
 
 //============================Writeback=============================//
-    mux2 #(32) u_mux2_readdata(aluoutW, readdataW, memtoregW, res);
+    // mux2 #(32) u_mux2_readdata(aluoutW, readdataW, memtoregW, res);
 
 //=============================Hazard==============================//
     hazard u_hazard(
@@ -441,7 +453,7 @@ module datapath(
         //decode
         rsD,rtD,
         branchD,
-        // forwardaD,forwardbD,
+        forwardaD,forwardbD,
         hstallD,
         //execute
         rsE,rtE,
@@ -457,35 +469,40 @@ module datapath(
         wregW,
         regwriteW
         // hilo
-        // flagE, flagM, flagW
+        // tohiloE,
+        // mfhiD,
+        // mfloD
     );
     
     assign stall_all = i_stall | d_stall | div_stall;
 
 //=========================Branch Prediction==========================//
-    branchpredictor bp(
-        // input
-        clk, rst,
-        pc, // 当前pc
-        pcsrcM, // 真正的方�?
-        pcsrcPM, // 预测的方�?
-        pc_pmisM, // 预测错误后的pc
-        pcM, // 之前的pc
-        branchM, // 之前是否是分�?
-        pcD, // D阶段的pc
-        branchD, // D阶段的branch
-        // output
-        pbranchF, // 预测�?
-        pmisM, // 是否预测错误
-        // flushD, // 清空F->D
-        flushE // 清空D->X
-        // flushM // 清空X->M
-    ); // 分支预测�?
+    // branchpredictor bp(
+    //     // input
+    //     clk, rst,
+    //     pc, // 当前pc
+    //     pcsrcM, // 真正的方�?
+    //     pcsrcPM, // 预测的方�?
+    //     pc_pmisM, // 预测错误后的pc
+    //     pcM, // 之前的pc
+    //     branchM, // 之前是否是分�?
+    //     pcD, // D阶段的pc
+    //     branchD, // D阶段的branch
+    //     // output
+    //     pbranchF, // 预测�?
+    //     pmisM, // 是否预测错误
+    //     // flushD, // 清空F->D
+    //     flushE // 清空D->X
+    //     // flushM // 清空X->M
+    // ); // 分支预测�?
+    assign flushE = pmisM;
+    assign pbranchF = 1'b0;
+
 
 //============================Debug=============================//
     assign debug_wb_pc = pcW;
     assign debug_wb_rf_wen = {4{regwriteW & ~stall_all}};
     assign debug_wb_rf_wnum = wregW;
-    assign debug_wb_rf_wdata = res;
+    assign debug_wb_rf_wdata = resW;
 
 endmodule

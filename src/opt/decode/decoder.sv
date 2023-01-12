@@ -37,7 +37,7 @@ module decoder(
 wire[5:0] op;
 wire[5:0] funct;
 wire[4:0] rs, rt;
-reg [6:0] controls;
+// reg [6:0] controls;
 
 assign op    = inst[31:26];
 assign funct = inst[5:0];
