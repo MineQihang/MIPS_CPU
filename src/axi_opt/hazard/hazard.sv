@@ -62,11 +62,11 @@ assign forwardbD = (rtD == 0) ? 2'b00 :
                    (rtD == writeregM & regwriteM) ? 2'b10 : // rt数据在Memory阶段
                    2'b00;
 
-assign stallFD = lwstallD | (div_stall & ~isexc) | stall_all;
+assign stallFD = (lwstallD | div_stall | stall_all) & ~isexc;
 assign flushFD = 1'b0;
 
 assign stallDE = stall_all | lwstallD;
-assign flushDE = isexc | ((lwstallD | pmisM) & ~stall_all); //flushE |  | flushE2; 
+assign flushDE = (isexc | lwstallD | pmisM) & ~stall_all;
 
 assign stallEM = stall_all;
 assign flushEM = isexc & ~stall_all;
