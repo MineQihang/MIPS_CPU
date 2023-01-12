@@ -127,8 +127,6 @@ module i_cache (
         end
     end
 
-    //////
-    assign cpu_inst_rdata = c_block;
     assign i_stall = ~hit;
-    //////
+    
 endmodule

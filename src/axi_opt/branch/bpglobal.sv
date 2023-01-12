@@ -44,26 +44,28 @@ always @(posedge clk) begin
         // end
         PHT <= '{default: '0};
     end
-    // 更新
-    if(branchD) begin // Decode阶段更新
-        GHR <= {GHR[GHR_WIDTH-2:0], pcsrcPF}; // 预测
-        GHR2_D <= {GHR[GHR_WIDTH-2:0], ~pcsrcPF}; // 预测相反方向
-    end
-    // GHR传播
-    if(!flushE) begin
-        GHR_E <= GHR;
-        GHR2_E <= GHR2_D;
-    end
-    if(!flushM) begin
-        GHR_Retired <= GHR_E;
-        GHR2 <= GHR2_E;
-    end
-    // 更新
-    if(branchM) begin
-        PHT[PHT_indexM] <= next_state; // 更新PHT
-        // 预测错误
-        if(pcsrcPM ^ pcsrcM) begin
-            GHR <= GHR2; // checkpoint替换法
+    else begin
+        // 更新
+        if(branchD) begin // Decode阶段更新
+            GHR <= {GHR[GHR_WIDTH-2:0], pcsrcPF}; // 预测
+            GHR2_D <= {GHR[GHR_WIDTH-2:0], ~pcsrcPF}; // 预测相反方向
+        end
+        // GHR传播
+        if(!flushE) begin
+            GHR_E <= GHR;
+            GHR2_E <= GHR2_D;
+        end
+        if(!flushM) begin
+            GHR_Retired <= GHR_E;
+            GHR2 <= GHR2_E;
+        end
+        // 更新
+        if(branchM) begin
+            PHT[PHT_indexM] <= next_state; // 更新PHT
+            // 预测错误
+            if(pcsrcPM ^ pcsrcM) begin
+                GHR <= GHR2; // checkpoint替换法
+            end
         end
     end
 end
